@@ -1,25 +1,26 @@
 use anyhow::Result;
-use std::{env, sync::Arc};
-
 use serenity::client::bridge::voice::ClientVoiceManager;
+use serenity::prelude::*;
 use serenity::{client::Context, prelude::Mutex};
-
 use serenity::{
     client::{Client, EventHandler},
     framework::StandardFramework,
     model::gateway::Ready,
 };
+use std::{env, sync::Arc};
 
-use serenity::prelude::*;
+mod commands;
+mod game;
+
+use crate::game::manager::Manager;
 
 struct VoiceManager;
 impl TypeMapKey for VoiceManager {
     type Value = Arc<Mutex<ClientVoiceManager>>;
 }
 
-struct QuizzManager;
-impl TypeMapKey for QuizzManager {
-    type Value = Arc<Mutex<Quizz>>;
+impl TypeMapKey for Manager {
+    type Value = Arc<Manager>;
 }
 
 struct Handler;
@@ -29,23 +30,16 @@ impl EventHandler for Handler {
     }
 }
 
-mod commands;
-mod quizz;
-
-use quizz::*;
-
 fn main() -> Result<()> {
     let token = env::var("DISCORD_TOKEN_LEVEL99").expect("Expected a token in the environment");
     let mut client = Client::new(&token, Handler).expect("Err creating client");
 
-    let quizz_source = std::path::Path::new("ExampleQuizz.csv");
-    let quizz_definition = QuizzDefinition::open(quizz_source)?;
-    let quizz = Quizz::new(quizz_definition);
+    let manager = Arc::new(Manager::default());
 
     {
         let mut data = client.data.write();
         data.insert::<VoiceManager>(Arc::clone(&client.voice_manager));
-        data.insert::<QuizzManager>(Arc::new(Mutex::new(quizz)));
+        data.insert::<Manager>(Arc::clone(&manager));
     }
 
     client.with_framework(
@@ -54,9 +48,9 @@ fn main() -> Result<()> {
             .group(&commands::GENERAL_GROUP),
     );
 
-    let _ = client
-        .start()
-        .map_err(|why| println!("Client ended: {:?}", why));
+    if let Err(why) = client.start() {
+        eprintln!("Client error: {:?}", why);
+    }
 
     Ok(())
 }

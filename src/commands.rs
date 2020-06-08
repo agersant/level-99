@@ -1,79 +1,99 @@
+use anyhow::*;
 use serenity::{
-    client::Context,
+    client::Context as SerenityContext,
     framework::standard::macros::{command, group},
-    framework::standard::CommandResult,
+    framework::standard::{Args, CommandError, CommandResult},
     model::channel::Message,
     model::misc::Mentionable,
     voice, Result as SerenityResult,
 };
+use std::path::Path;
 
-use crate::QuizzManager;
+use crate::game::manager::Manager;
 use crate::VoiceManager;
 
 #[group]
-#[commands(join, leave, question, answer)]
+#[commands(join, begin, answer)]
 struct General;
 
 #[command]
-fn question(ctx: &mut Context, msg: &Message) -> CommandResult {
-    let quizz_lock = ctx
-        .data
-        .read()
-        .get::<QuizzManager>()
-        .cloned()
-        .expect("Expected VoiceManager in ShareMap.");
-    let mut quizz = quizz_lock.lock();
+fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
+    let result = || -> Result<()> {
+        let manager = ctx
+            .data
+            .read()
+            .get::<Manager>()
+            .cloned()
+            .expect("Expected VoiceManager in ShareMap.");
+        let guild_id = msg.guild_id.context("Missing guild_id")?;
+        let game_lock = manager.get_game(guild_id);
+        let mut game = game_lock.lock().expect("Couldn't acquire game lock");
 
-    match quizz.begin_new_question() {
-        Some(question) => {
-            let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
-                Some(channel) => channel.read().guild_id,
-                None => {
-                    check_msg(msg.channel_id.say(&ctx.http, "Error finding channel info"));
+        let path_string = args.parse::<String>().context("Must specify a file name")?;
+        let path = Path::new(&path_string);
+        game.begin(path)
+            .with_context(|| format!("Could not begin quizz with path {:?}", path))?;
 
-                    return Ok(());
-                }
-            };
-            let manager_lock = ctx
-                .data
-                .read()
-                .get::<VoiceManager>()
-                .cloned()
-                .expect("Expected VoiceManager in ShareMap.");
-            let mut manager = manager_lock.lock();
-            if let Some(handler) = manager.get_mut(guild_id) {
-                let source = match voice::ytdl(&question.url) {
-                    Ok(source) => source,
-                    Err(why) => {
-                        println!("Err starting source: {:?}", why);
-                        check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg"));
-                        return Ok(());
-                    }
-                };
-                handler.play_only(source);
-                check_msg(msg.channel_id.say(&ctx.http, "Playing song"));
-            } else {
-                check_msg(
-                    msg.channel_id
-                        .say(&ctx.http, "Not in a voice channel to play in"),
-                );
-            }
+        check_msg(msg.channel_id.say(&ctx.http, "The quizz begins!"));
+        Ok(())
+    }();
+
+    match result {
+        Err(e) => {
+            eprintln!("{:#}", e);
+            Err(CommandError(e.to_string()))
         }
-        None => {
-            // TODO QUIZZ IS OVER
-        }
+        Ok(_) => Ok(()),
     }
 
+    // match quizz.begin_new_question() {
+    //     Some(question) => {
+    //         let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
+    //             Some(channel) => channel.read().guild_id,
+    //             None => {
+    //                 check_msg(msg.channel_id.say(&ctx.http, "Error finding channel info"));
+
+    //                 return Ok(());
+    //             }
+    //         };
+    //         let manager_lock = ctx
+    //             .data
+    //             .read()
+    //             .get::<VoiceManager>()
+    //             .cloned()
+    //             .expect("Expected VoiceManager in ShareMap.");
+    //         let mut manager = manager_lock.lock();
+    //         if let Some(handler) = manager.get_mut(guild_id) {
+    //             let source = match voice::ytdl(&question.url) {
+    //                 Ok(source) => source,
+    //                 Err(why) => {
+    //                     println!("Err starting source: {:?}", why);
+    //                     check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg"));
+    //                     return Ok(());
+    //                 }
+    //             };
+    //             handler.play_only(source);
+    //             check_msg(msg.channel_id.say(&ctx.http, "Playing song"));
+    //         } else {
+    //             check_msg(
+    //                 msg.channel_id
+    //                     .say(&ctx.http, "Not in a voice channel to play in"),
+    //             );
+    //         }
+    //     }
+    //     None => {
+    //         // TODO QUIZZ IS OVER
+    //     }
+    // }
+}
+
+#[command]
+fn answer(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     Ok(())
 }
 
 #[command]
-fn answer(ctx: &mut Context, msg: &Message) -> CommandResult {
-    Ok(())
-}
-
-#[command]
-fn join(ctx: &mut Context, msg: &Message) -> CommandResult {
+fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     let guild = match msg.guild(&ctx.cache) {
         Some(guild) => guild,
         None => {
@@ -122,43 +142,9 @@ fn join(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 
-#[command]
-fn leave(ctx: &mut Context, msg: &Message) -> CommandResult {
-    let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
-        Some(channel) => channel.read().guild_id,
-        None => {
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, "Groups and DMs not supported"),
-            );
-
-            return Ok(());
-        }
-    };
-
-    let manager_lock = ctx
-        .data
-        .read()
-        .get::<VoiceManager>()
-        .cloned()
-        .expect("Expected VoiceManager in ShareMap.");
-    let mut manager = manager_lock.lock();
-    let has_handler = manager.get(guild_id).is_some();
-
-    if has_handler {
-        manager.remove(guild_id);
-
-        check_msg(msg.channel_id.say(&ctx.http, "Left voice channel"));
-    } else {
-        check_msg(msg.reply(&ctx, "Not in a voice channel"));
-    }
-
-    Ok(())
-}
-
 /// Checks that a message successfully sent; if not, then logs why to stdout.
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(why) = result {
-        println!("Error sending message: {:?}", why);
+        eprintln!("Error sending message: {:?}", why);
     }
 }

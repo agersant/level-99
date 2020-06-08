@@ -14,28 +14,6 @@ pub struct QuizzDefinition {
     questions: Vec<Question>,
 }
 
-pub struct Quizz {
-    remaining_questions: Vec<Question>,
-    current_question: Option<Question>,
-}
-
-impl Quizz {
-    pub fn new(definition: QuizzDefinition) -> Quizz {
-        Quizz {
-            remaining_questions: definition.questions.clone(),
-            current_question: None,
-        }
-    }
-
-    pub fn begin_new_question(&mut self) -> Option<&Question> {
-        if self.remaining_questions.is_empty() {
-            return None;
-        }
-        self.current_question = Some(self.remaining_questions.swap_remove(0));
-        self.current_question.as_ref()
-    }
-}
-
 impl QuizzDefinition {
     pub fn open(source: &Path) -> Result<QuizzDefinition> {
         let mut questions = Vec::new();
@@ -48,5 +26,9 @@ impl QuizzDefinition {
         }
 
         Ok(QuizzDefinition { questions })
+    }
+
+    pub fn get_questions(&self) -> &Vec<Question> {
+        &self.questions
     }
 }
