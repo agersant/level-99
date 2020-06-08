@@ -1,33 +1,14 @@
-use std::sync::Arc;
-
-use serenity::client::bridge::voice::ClientVoiceManager;
-use serenity::{client::Context, prelude::Mutex};
-
 use serenity::{
-    client::EventHandler,
-    framework::standard::{
-        macros::{command, group},
-        CommandResult,
-    },
-    model::{channel::Message, gateway::Ready, misc::Mentionable},
-    Result as SerenityResult,
+    client::Context,
+    framework::standard::macros::{command, group},
+    framework::standard::CommandResult,
+    model::channel::Message,
+    model::misc::Mentionable,
+    voice, Result as SerenityResult,
 };
 
-use serenity::prelude::*;
-
-struct VoiceManager;
-
-impl TypeMapKey for VoiceManager {
-    type Value = Arc<Mutex<ClientVoiceManager>>;
-}
-
-struct Handler;
-
-impl EventHandler for Handler {
-    fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-    }
-}
+use crate::QuizzManager;
+use crate::VoiceManager;
 
 #[group]
 #[commands(join, leave, question, answer)]
@@ -35,6 +16,54 @@ struct General;
 
 #[command]
 fn question(ctx: &mut Context, msg: &Message) -> CommandResult {
+    let quizz_lock = ctx
+        .data
+        .read()
+        .get::<QuizzManager>()
+        .cloned()
+        .expect("Expected VoiceManager in ShareMap.");
+    let mut quizz = quizz_lock.lock();
+
+    match quizz.begin_new_question() {
+        Some(question) => {
+            let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
+                Some(channel) => channel.read().guild_id,
+                None => {
+                    check_msg(msg.channel_id.say(&ctx.http, "Error finding channel info"));
+
+                    return Ok(());
+                }
+            };
+            let manager_lock = ctx
+                .data
+                .read()
+                .get::<VoiceManager>()
+                .cloned()
+                .expect("Expected VoiceManager in ShareMap.");
+            let mut manager = manager_lock.lock();
+            if let Some(handler) = manager.get_mut(guild_id) {
+                let source = match voice::ytdl(&question.url) {
+                    Ok(source) => source,
+                    Err(why) => {
+                        println!("Err starting source: {:?}", why);
+                        check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg"));
+                        return Ok(());
+                    }
+                };
+                handler.play_only(source);
+                check_msg(msg.channel_id.say(&ctx.http, "Playing song"));
+            } else {
+                check_msg(
+                    msg.channel_id
+                        .say(&ctx.http, "Not in a voice channel to play in"),
+                );
+            }
+        }
+        None => {
+            // TODO QUIZZ IS OVER
+        }
+    }
+
     Ok(())
 }
 
@@ -69,7 +98,6 @@ fn join(ctx: &mut Context, msg: &Message) -> CommandResult {
         Some(channel) => channel,
         None => {
             check_msg(msg.reply(&ctx, "Not in a voice channel"));
-
             return Ok(());
         }
     };
