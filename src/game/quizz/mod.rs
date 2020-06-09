@@ -21,6 +21,7 @@ trait State {
 
 #[derive(Debug)]
 enum Phase {
+    Startup(StartupState),
     Cooldown(CooldownState),
     Vote(VoteState),
     Question(QuestionState),
@@ -37,6 +38,7 @@ enum Transition {
 impl Phase {
     fn get_state(&mut self) -> &mut dyn State {
         match self {
+            Phase::Startup(s) => s,
             Phase::Cooldown(s) => s,
             Phase::Vote(s) => s,
             Phase::Question(s) => s,
@@ -44,6 +46,7 @@ impl Phase {
         }
     }
 }
+#[derive(Debug)]
 pub struct Quizz {
     settings: Settings,
     remaining_questions: Vec<Question>,
@@ -59,19 +62,35 @@ impl Quizz {
         output_pipe: Arc<RwLock<OutputPipe>>,
     ) -> Quizz {
         let settings: Settings = Default::default();
-        Quizz {
+        let mut quizz = Quizz {
             remaining_questions: definition.get_questions().clone(),
-            current_phase: Phase::Cooldown(CooldownState::new(settings.cooldown_duration)),
+            current_phase: Phase::Startup(StartupState::new()),
             output_pipe,
             settings,
             teams,
+        };
+        quizz.set_current_phase(Phase::Cooldown(CooldownState::new(
+            quizz.settings.cooldown_duration,
+        )));
+        quizz
+    }
+
+    pub fn is_over(&self) -> bool {
+        match self.current_phase {
+            Phase::Results(_) => true,
+            _ => false,
         }
+    }
+
+    pub fn get_teams(&self) -> &Vec<Team> {
+        &self.teams
     }
 
     fn set_current_phase(&mut self, phase: Phase) {
         let mut output_pipe = self.output_pipe.write();
         let state = self.current_phase.get_state();
         state.end(&mut output_pipe);
+        println!("Entering quizz phase: {:?}", &phase);
         self.current_phase = phase;
         let state = self.current_phase.get_state();
         state.begin(&mut output_pipe);

@@ -26,6 +26,12 @@ pub struct DiscordOutput {
     client_voice_manager: Arc<Mutex<ClientVoiceManager>>,
 }
 
+impl std::fmt::Debug for DiscordOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiscordOutput").finish()
+    }
+}
+
 impl DiscordOutput {
     pub fn new(http: Arc<Http>, client_voice_manager: Arc<Mutex<ClientVoiceManager>>) -> Self {
         DiscordOutput {
@@ -63,6 +69,7 @@ impl DiscordOutput {
     }
 }
 
+#[derive(Debug)]
 pub struct OutputPipe {
     guild: GuildId,
     channel: ChannelId,

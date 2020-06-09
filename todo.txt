@@ -1,5 +1,5 @@
 [x] Time limit on question
-[] Return to setup phase when quizz is over
+[x] Return to setup phase when quizz is over
 [] Team channels
 [] Scoring
 [] Team can only guess once
@@ -10,9 +10,12 @@
 [] Don't allow begin without joining voice room
 [] Reset scores command
 [] Reset teams command
+[] Post answers in chat after questions
 [] Warning for 30 and 10 seconds left
 [] Pause/unpause
 [] End quizz command
 [] Bot personality (image, name, texts)
 [] Score multiplier for follow-up rounds (settings.toml?)
 [] Audio jingles
+[] Create game on ready instead of within get_game()
+[] Skip cooldown phase after last question

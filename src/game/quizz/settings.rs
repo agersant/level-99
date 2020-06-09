@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+#[derive(Debug)]
 pub struct Settings {
     pub cooldown_duration: Duration,
     pub vote_duration: Duration,
