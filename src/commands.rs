@@ -27,13 +27,10 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
             .expect("Expected VoiceManager in ShareMap.");
         let game_lock = manager.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
-
         let path_string = args.parse::<String>().context("Filename cannot be blank")?;
         let path = Path::new(&path_string);
         game.begin(path)
             .with_context(|| format!("Could not begin quizz with path {:?}", path))?;
-
-        check_msg(msg.channel_id.say(&ctx.http, "The quizz begins!")); // TODO emit from quizz instead
         Ok(())
     }();
 

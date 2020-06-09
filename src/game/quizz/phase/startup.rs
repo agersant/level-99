@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::game::quizz::{State, Transition};
-use crate::output::OutputPipe;
+use crate::output::{OutputPipe, Payload};
 
 #[derive(Debug)]
 pub struct StartupState {}
@@ -19,5 +19,7 @@ impl State for StartupState {
 
     fn begin(&mut self, _output_pipe: &mut OutputPipe) {}
 
-    fn end(&mut self, _output_pipe: &mut OutputPipe) {}
+    fn end(&mut self, output_pipe: &mut OutputPipe) {
+        output_pipe.push(Payload::Text("The quizz begins!".into()))
+    }
 }
