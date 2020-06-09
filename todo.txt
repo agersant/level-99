@@ -1,0 +1,13 @@
+[] Time limit on question
+[] Team channels
+[] Scoring
+[] Team can only guess once
+[] Announce score between questions
+[] Voting & question categories
+[] Regex/fuzzy guesses
+[] Reset scores command
+[] Reset teams command
+[] Pause/unpause
+[] Bot personality (image, name, texts)
+[] Score multiplier for follow-up rounds (settings.toml?)
+[] Audio jingles
