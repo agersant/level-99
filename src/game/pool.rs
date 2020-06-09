@@ -1,4 +1,5 @@
-use serenity::client::Context;
+use anyhow::*;
+use serenity::client::Context as SerenityContext;
 use serenity::model::id::ChannelId;
 use serenity::prelude::Mutex;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn get_game(&self, ctx: &Context, channel: ChannelId) -> Arc<Mutex<Game>> {
+    pub fn get_game(&self, ctx: &SerenityContext, channel: ChannelId) -> Result<Arc<Mutex<Game>>> {
         let game_exists = {
             let map = self.games.read().expect("Pool RwLock poisoned");
             map.contains_key(&channel)
@@ -27,12 +28,21 @@ impl Pool {
                 .get::<DiscordOutputManager>()
                 .cloned()
                 .expect("Expected DiscordOutput in ShareMap.");
-            let dispatcher = OutputPipe::new(channel, &discord_output);
+
+            let guild = ctx
+                .cache
+                .read()
+                .guild_channel(channel)
+                .context("Server not found")?
+                .read()
+                .guild_id;
+
+            let dispatcher = OutputPipe::new(guild, channel, &discord_output);
             let mut map = self.games.write().expect("Pool RwLock poisoned");
             map.insert(channel, Arc::new(Mutex::new(Game::new(dispatcher))));
         }
         let map = self.games.read().expect("Pool RwLock poisoned");
-        Arc::clone(map.get(&channel).expect("Pool missing game"))
+        Ok(Arc::clone(map.get(&channel).expect("Pool missing game")))
     }
 
     pub fn tick(&self, dt: Duration) {

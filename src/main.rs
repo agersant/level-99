@@ -60,7 +60,10 @@ fn main() -> Result<()> {
     let mut client = Client::new(&token, Handler).expect("Err creating client");
 
     // Create output
-    let discord_output = DiscordOutput::new(&client.cache_and_http.http);
+    let discord_output = DiscordOutput::new(
+        Arc::clone(&client.cache_and_http.http),
+        Arc::clone(&client.voice_manager),
+    );
     let discord_output: Arc<Mutex<DiscordOutput>> = Arc::new(Mutex::new(discord_output));
 
     // Associate persistent data with discord client

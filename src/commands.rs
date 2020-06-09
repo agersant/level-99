@@ -5,7 +5,7 @@ use serenity::{
     framework::standard::{Args, CommandError, CommandResult},
     model::channel::Message,
     model::misc::Mentionable,
-    voice, Result as SerenityResult,
+    Result as SerenityResult,
 };
 use std::path::Path;
 
@@ -25,7 +25,7 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
             .get::<GamePool>()
             .cloned()
             .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id);
+        let game_lock = manager.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
 
         let path_string = args.parse::<String>().context("Must specify a file name")?;
@@ -44,46 +44,6 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         }
         Ok(_) => Ok(()),
     }
-
-    // match quizz.begin_new_question() {
-    //     Some(question) => {
-    //         let guild_id = match ctx.cache.read().guild_channel(msg.channel_id) {
-    //             Some(channel) => channel.read().guild_id,
-    //             None => {
-    //                 check_msg(msg.channel_id.say(&ctx.http, "Error finding channel info"));
-
-    //                 return Ok(());
-    //             }
-    //         };
-    //         let manager_lock = ctx
-    //             .data
-    //             .read()
-    //             .get::<VoiceManager>()
-    //             .cloned()
-    //             .expect("Expected VoiceManager in ShareMap.");
-    //         let mut manager = manager_lock.lock();
-    //         if let Some(handler) = manager.get_mut(guild_id) {
-    //             let source = match voice::ytdl(&question.url) {
-    //                 Ok(source) => source,
-    //                 Err(why) => {
-    //                     println!("Err starting source: {:?}", why);
-    //                     check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg"));
-    //                     return Ok(());
-    //                 }
-    //             };
-    //             handler.play_only(source);
-    //             check_msg(msg.channel_id.say(&ctx.http, "Playing song"));
-    //         } else {
-    //             check_msg(
-    //                 msg.channel_id
-    //                     .say(&ctx.http, "Not in a voice channel to play in"),
-    //             );
-    //         }
-    //     }
-    //     None => {
-    //         // TODO QUIZZ IS OVER
-    //     }
-    // }
 }
 
 #[command]

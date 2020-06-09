@@ -15,7 +15,7 @@ trait Step {
 enum QuizzStep {
     Cooldown(CooldownStep),
     Vote,
-    Question,
+    Question(QuestionStep),
 }
 
 #[derive(Debug)]
@@ -38,6 +38,16 @@ impl CooldownStep {
 
     pub fn is_over(&self) -> bool {
         self.time_elapsed >= self.time_to_wait
+    }
+}
+#[derive(Debug)]
+struct QuestionStep {
+    question: Question,
+}
+
+impl QuestionStep {
+    pub fn new(question: Question) -> Self {
+        QuestionStep { question }
     }
 }
 
@@ -73,11 +83,25 @@ impl Quizz {
                 cooldown_state.tick(dt);
                 if cooldown_state.is_over() {
                     // TODO give a Enter and End method to each step to guarantee events are emitted when they need to
-                    self.set_current_step(QuizzStep::Question);
-                    output_pipe.push(Payload::Text("Time for a question!".into()));
+                    match self.select_question() {
+                        None => (), // TODO quizz is over
+                        Some(q) => {
+                            output_pipe.push(Payload::Text("Time for a question!".into()));
+                            output_pipe.push(Payload::Audio(q.url.clone()));
+                            let step = QuestionStep::new(q);
+                            self.set_current_step(QuizzStep::Question(step));
+                        }
+                    };
                 }
             }
             _ => (),
         };
+    }
+
+    fn select_question(&mut self) -> Option<Question> {
+        if self.remaining_questions.is_empty() {
+            return None;
+        }
+        Some(self.remaining_questions.swap_remove(0))
     }
 }
