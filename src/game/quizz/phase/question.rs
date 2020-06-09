@@ -1,5 +1,5 @@
 use anyhow::*;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
@@ -7,12 +7,19 @@ use crate::game::quizz::{State, Transition};
 use crate::game::TeamId;
 use crate::output::{OutputPipe, Payload};
 
+#[derive(Clone, Debug)]
+pub struct GuessResult {
+    pub guess: String,
+    pub score_delta: i32,
+    pub is_correct: bool,
+}
+
 #[derive(Debug)]
 pub struct QuestionState {
     question: Question,
     time_elapsed: Duration,
     time_limit: Duration,
-    teams_with_guesses: HashSet<TeamId>,
+    guesses: HashMap<TeamId, GuessResult>,
 }
 
 impl QuestionState {
@@ -21,7 +28,7 @@ impl QuestionState {
             question,
             time_elapsed: Duration::default(),
             time_limit: duration,
-            teams_with_guesses: HashSet::new(),
+            guesses: HashMap::new(),
         }
     }
 
@@ -30,22 +37,38 @@ impl QuestionState {
         team_id: &TeamId,
         guess: &str,
         output_pipe: &mut OutputPipe,
-    ) -> Result<bool> {
-        if self.teams_with_guesses.contains(team_id) {
+    ) -> Result<GuessResult> {
+        if self.guesses.contains_key(team_id) {
             return Err(anyhow!("Team already made a guess"));
         }
-        self.teams_with_guesses.insert(team_id.clone());
-        let guessed_correctly = self.question.is_guess_correct(guess);
-        if guessed_correctly {
+
+        let is_correct = self.question.is_guess_correct(guess);
+        if is_correct {
             output_pipe.push(Payload::Text("Correct!".into()));
         } else {
             output_pipe.push(Payload::Text("WRONG!".into()));
         }
-        Ok(guessed_correctly)
+
+        let score_delta = self.compute_score_delta(is_correct);
+        let guess_result = GuessResult {
+            guess: guess.into(),
+            is_correct,
+            score_delta,
+        };
+        self.guesses.insert(team_id.clone(), guess_result.clone());
+        Ok(guess_result)
     }
 
-    pub fn get_question(&self) -> &Question {
-        &self.question
+    fn compute_score_delta(&self, correct: bool) -> i32 {
+        let score_value = self.question.score_value as i32;
+        let correctness_multiplier = if correct { 1 } else { -1 };
+        let already_guessed = self.guesses.iter().any(|(_t, g)| g.is_correct);
+        let delta = score_value * correctness_multiplier;
+        if !already_guessed {
+            delta
+        } else {
+            delta / 2
+        }
     }
 
     fn is_over(&self) -> bool {

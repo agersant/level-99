@@ -112,36 +112,30 @@ impl Quizz {
     }
 
     pub fn guess(&mut self, team_id: &TeamId, guess: &str) -> Result<()> {
-        let transition = match &mut self.current_phase {
+        match &mut self.current_phase {
             Phase::Question(question_state) => {
-                let guessed_correctly =
+                let guess_result =
                     question_state.guess(team_id, guess, &mut self.output_pipe.write())?;
 
-                let score_value = question_state.get_question().score_value as i32;
                 let team = self.get_team_mut(team_id).context("Team not found")?;
                 let team_display_name = team.get_display_name().to_owned();
 
-                if guessed_correctly {
-                    team.update_score(score_value);
+                team.update_score(guess_result.score_delta);
+                if guess_result.is_correct {
                     self.broadcast(Payload::Text(format!(
                         "Team {} earns {} points!",
-                        team_display_name, score_value
+                        team_display_name, guess_result.score_delta
                     )));
-                    Some(Transition::ToCooldownPhase)
                 } else {
-                    team.update_score(-score_value);
                     self.broadcast(Payload::Text(format!(
                         "Team {} loses {} points. Womp womp 📯",
-                        team_display_name, score_value
+                        team_display_name, guess_result.score_delta
                     )));
-                    None
                 }
+                Ok(())
             }
-            _ => return Err(anyhow!("There is no active question")),
-        };
-
-        self.process_transition(transition);
-        Ok(())
+            _ => Err(anyhow!("There is no active question")),
+        }
     }
 
     fn broadcast(&self, payload: Payload) {

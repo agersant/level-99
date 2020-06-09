@@ -3,7 +3,7 @@
 [x] Team channels
 [x] Guessing earns or removes points
 [x] Teams can only guess once
-[] Multiple teams can get points
+[x] Multiple teams can get points
 [] Voting
 [] Categories
 [] Regex/fuzzy guesses
@@ -25,6 +25,7 @@
 [] Command groups for quizz VS setup
 [] Pause/unpause
 [] End quizz command
+[] Skip question command
 [] Bot personality (image, name, texts)
 [] Review TODO comments
 [] Unit tests
