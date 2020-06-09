@@ -28,11 +28,13 @@
 [] Bot personality (image, name, texts)
 [] Review TODO comments
 [] Unit tests
+[] Daily double
 [] Post quizz updates to team channels
 [] Create game on ready and on join server instead of within get_game()
 [] Skip cooldown phase after last question
 [] Add sound effects for: correct answer, wrong answer, time's up, question start
 [] Announce winning team
 [] Solo play
-[] Score multiplier for follow-up rounds (settings.toml?)
+[] Double Jeopardy
+[] Final Jeopardy
 [] Disk persistence
