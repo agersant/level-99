@@ -7,8 +7,10 @@
 [] Announce score between questions
 [] Voting & question categories
 [] Regex/fuzzy guesses
+[] Don't allow begin without joining voice room
 [] Reset scores command
 [] Reset teams command
+[] Warning for 30 and 10 seconds left
 [] Pause/unpause
 [] End quizz command
 [] Bot personality (image, name, texts)
