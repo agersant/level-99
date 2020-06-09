@@ -2,6 +2,7 @@
 [] Team channels
 [] Scoring
 [] Team can only guess once
+[] Multiple teams can answer
 [] Announce score between questions
 [] Voting & question categories
 [] Regex/fuzzy guesses

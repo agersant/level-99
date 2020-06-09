@@ -8,5 +8,6 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0"
 csv = "1.1"
+parking_lot = "0.10"
 serenity = { version = "0.8.6", features = ["cache", "framework", "standard_framework", "voice", "http", "rustls_backend"] }
 serde = { version = "1", features = ["derive"] }

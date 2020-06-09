@@ -14,9 +14,10 @@ use std::time::{Duration, Instant};
 
 mod commands;
 mod game;
+mod output;
 
-use crate::game::output::DiscordOutput;
 use crate::game::pool::Pool as GamePool;
+use crate::output::DiscordOutput;
 
 struct VoiceManager;
 impl TypeMapKey for VoiceManager {

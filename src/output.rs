@@ -11,6 +11,7 @@ use std::sync::Arc;
 pub enum Payload {
     Text(String),
     Audio(String),
+    StopAudio,
 }
 
 #[derive(Clone)]
@@ -44,6 +45,15 @@ impl DiscordOutput {
                 if let Some(handler) = manager.get_mut(event.guild) {
                     let source = voice::ytdl(&url)?;
                     handler.play_only(source);
+                } else {
+                    eprintln!("Not in a voice channel to play in");
+                }
+                Ok(())
+            }
+            Payload::StopAudio => {
+                let mut manager = self.client_voice_manager.lock();
+                if let Some(handler) = manager.get_mut(event.guild) {
+                    handler.stop();
                 } else {
                     eprintln!("Not in a voice channel to play in");
                 }
