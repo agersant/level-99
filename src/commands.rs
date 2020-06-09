@@ -9,7 +9,7 @@ use serenity::{
 };
 use std::path::Path;
 
-use crate::game::manager::Manager;
+use crate::game::pool::Pool as GamePool;
 use crate::VoiceManager;
 
 #[group]
@@ -22,12 +22,11 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         let manager = ctx
             .data
             .read()
-            .get::<Manager>()
+            .get::<GamePool>()
             .cloned()
             .expect("Expected VoiceManager in ShareMap.");
-        let guild_id = msg.guild_id.context("Missing guild_id")?;
-        let game_lock = manager.get_game(guild_id);
-        let mut game = game_lock.lock().expect("Couldn't acquire game lock");
+        let game_lock = manager.get_game(ctx, msg.channel_id);
+        let mut game = game_lock.lock();
 
         let path_string = args.parse::<String>().context("Must specify a file name")?;
         let path = Path::new(&path_string);

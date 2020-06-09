@@ -1,11 +1,14 @@
 use anyhow::*;
 use std::path::Path;
+use std::time::Duration;
 
 mod definition;
-pub mod manager;
+pub mod output;
+pub mod pool;
 mod quizz;
 mod settings;
 
+use crate::game::output::OutputPipe;
 use crate::game::quizz::Quizz;
 
 enum Phase {
@@ -36,21 +39,30 @@ impl QuizzState {
 }
 
 pub struct Game {
-    phase: Phase,
+    current_phase: Phase,
+    output_pipe: OutputPipe,
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(output_pipe: OutputPipe) -> Game {
         Game {
-            phase: Phase::Setup(Default::default()),
+            current_phase: Phase::Setup(Default::default()),
+            output_pipe,
         }
     }
 
+    pub fn tick(&mut self, dt: Duration) {
+        match &mut self.current_phase {
+            Phase::Setup(_) => (),
+            Phase::Quizz(quizz_state) => quizz_state.quizz.tick(dt, &mut self.output_pipe),
+        };
+    }
+
     pub fn begin(&mut self, quizz_path: &Path) -> Result<()> {
-        match &self.phase {
+        match &self.current_phase {
             Phase::Setup(state) => {
                 let quizz = Quizz::load(quizz_path)?;
-                self.phase = Phase::Quizz(QuizzState::new(state.teams.clone(), quizz));
+                self.current_phase = Phase::Quizz(QuizzState::new(state.teams.clone(), quizz));
                 Ok(())
             }
             _ => Err(anyhow!("Cannot call begin outside of setup phase")),
