@@ -1,4 +1,5 @@
 [] Time limit on question
+[] Return to setup phase when quizz is over
 [] Team channels
 [] Scoring
 [] Team can only guess once
@@ -9,6 +10,7 @@
 [] Reset scores command
 [] Reset teams command
 [] Pause/unpause
+[] End quizz command
 [] Bot personality (image, name, texts)
 [] Score multiplier for follow-up rounds (settings.toml?)
 [] Audio jingles
