@@ -13,7 +13,7 @@ use crate::game::pool::Pool as GamePool;
 use crate::VoiceManager;
 
 #[group]
-#[commands(join, begin, answer)]
+#[commands(join, begin, guess)]
 struct General;
 
 #[command]
@@ -28,7 +28,7 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         let game_lock = manager.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
 
-        let path_string = args.parse::<String>().context("Must specify a file name")?;
+        let path_string = args.parse::<String>().context("Filename cannot be blank")?;
         let path = Path::new(&path_string);
         game.begin(path)
             .with_context(|| format!("Could not begin quizz with path {:?}", path))?;
@@ -47,8 +47,30 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
 }
 
 #[command]
-fn answer(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
-    Ok(())
+fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
+    let result = || -> Result<()> {
+        let manager = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected VoiceManager in ShareMap.");
+        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+
+        let guess = args.rest();
+        game.guess(&guess)
+            .with_context(|| format!("Could not process guess {}", guess))?;
+        Ok(())
+    }();
+
+    match result {
+        Err(e) => {
+            eprintln!("{:#}", e);
+            Err(CommandError(e.to_string()))
+        }
+        Ok(_) => Ok(()),
+    }
 }
 
 #[command]

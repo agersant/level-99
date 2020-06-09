@@ -68,4 +68,11 @@ impl Game {
             _ => Err(anyhow!("Cannot call begin outside of setup phase")),
         }
     }
+
+    pub fn guess(&mut self, guess: &str) -> Result<()> {
+        match &mut self.current_phase {
+            Phase::Setup(_) => Err(anyhow!("Cannot submit answers during setup phase")),
+            Phase::Quizz(state) => state.quizz.guess(guess, &mut self.output_pipe),
+        }
+    }
 }

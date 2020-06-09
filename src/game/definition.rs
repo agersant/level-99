@@ -9,6 +9,12 @@ pub struct Question {
     pub answer: String,
 }
 
+impl Question {
+    pub fn is_guess_correct(&self, guess: &str) -> bool {
+        guess == self.answer
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct QuizzDefinition {
     questions: Vec<Question>,

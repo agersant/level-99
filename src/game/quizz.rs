@@ -98,6 +98,22 @@ impl Quizz {
         };
     }
 
+    pub fn guess(&mut self, guess: &str, output_pipe: &mut OutputPipe) -> Result<()> {
+        match &self.current_step {
+            QuizzStep::Question(question_step) => {
+                let guessed_correctly = question_step.question.is_guess_correct(guess);
+                if guessed_correctly {
+                    output_pipe.push(Payload::Text("Correct!".into()));
+                } else {
+                    output_pipe.push(Payload::Text(guess.into()));
+                    output_pipe.push(Payload::Text("WRONG!".into()));
+                }
+                Ok(())
+            }
+            _ => Err(anyhow!("There is no active question")),
+        }
+    }
+
     fn select_question(&mut self) -> Option<Question> {
         if self.remaining_questions.is_empty() {
             return None;
