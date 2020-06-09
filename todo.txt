@@ -2,7 +2,7 @@
 [x] Return to setup phase when quizz is over
 [x] Team channels
 [x] Guessing earns or removes points
-[] Team can only guess once
+[x] Teams can only guess once
 [] Multiple teams can get points
 [] Voting
 [] Categories

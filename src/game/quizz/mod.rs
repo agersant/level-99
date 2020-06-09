@@ -111,12 +111,14 @@ impl Quizz {
         self.process_transition(transition);
     }
 
-    pub fn guess(&mut self, team: &TeamId, guess: &str) -> Result<()> {
+    pub fn guess(&mut self, team_id: &TeamId, guess: &str) -> Result<()> {
         let transition = match &mut self.current_phase {
             Phase::Question(question_state) => {
-                let guessed_correctly = question_state.guess(guess, &mut self.output_pipe.write());
+                let guessed_correctly =
+                    question_state.guess(team_id, guess, &mut self.output_pipe.write())?;
+
                 let score_value = question_state.get_question().score_value as i32;
-                let team = self.get_team_mut(team).context("Team not found")?;
+                let team = self.get_team_mut(team_id).context("Team not found")?;
                 let team_display_name = team.get_display_name().to_owned();
 
                 if guessed_correctly {
