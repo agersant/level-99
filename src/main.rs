@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+mod channels;
 mod commands;
 mod game;
 mod output;
@@ -35,8 +36,13 @@ impl TypeMapKey for GamePool {
 
 struct Handler;
 impl EventHandler for Handler {
-    fn ready(&self, _: Context, ready: Ready) {
+    fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+        for guild in &ready.guilds {
+            if let Err(e) = channels::update_team_channels(&ctx, guild.id(), &vec![]) {
+                eprintln!("Could not initialize team channels: {:#}", e);
+            }
+        }
     }
 }
 

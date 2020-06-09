@@ -9,11 +9,12 @@ use serenity::{
 };
 use std::path::Path;
 
+use crate::channels::*;
 use crate::game::pool::Pool as GamePool;
 use crate::VoiceManager;
 
 #[group]
-#[commands(join, begin, guess)]
+#[commands(begin, guess, join, team)]
 struct General;
 
 #[command]
@@ -120,7 +121,44 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     Ok(())
 }
 
+#[command]
+fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
+    let result = || -> Result<()> {
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+
+        let team_name = args.rest();
+        // TODO Trim, and only keep letters and numbers. Replace everything else with hyphens.
+        if !team_name.is_empty() {
+            game.join_team(msg.author.id, team_name)?;
+        }
+
+        let guild = msg
+            .guild(&ctx.cache)
+            .context("Groups and DMs not supported")?;
+        let guild_id = guild.read().id;
+        update_team_channels(ctx, guild_id, game.get_teams())?;
+
+        Ok(())
+    }();
+
+    match result {
+        Err(e) => {
+            eprintln!("{:#}", e);
+            Err(CommandError(e.to_string()))
+        }
+        Ok(_) => Ok(()),
+    }
+}
+
 /// Checks that a message successfully sent; if not, then logs why to stdout.
+// TODO remove this
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(why) = result {
         eprintln!("Error sending message: {:?}", why);

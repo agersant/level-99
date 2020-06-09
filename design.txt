@@ -6,7 +6,7 @@ Admin:
 	!begin quizz_file.csv
 
 Player:
-	!team team_name
+	!team team name
 
 [QUIZZ PHASE]
 Admin

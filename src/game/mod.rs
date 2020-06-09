@@ -1,5 +1,7 @@
 use anyhow::*;
 use parking_lot::RwLock;
+use serenity::model::id::UserId;
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,7 +23,26 @@ enum Phase {
 #[derive(Clone, Debug)]
 pub struct Team {
     name: String,
+    players: HashSet<UserId>,
     score: i32,
+}
+
+impl Team {
+    pub fn new(name: String) -> Self {
+        Team {
+            name,
+            score: 0,
+            players: HashSet::new(),
+        }
+    }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_players(&self) -> &HashSet<UserId> {
+        &self.players
+    }
 }
 
 #[derive(Debug, Default)]
@@ -87,6 +108,42 @@ impl Game {
                 Ok(())
             }
             _ => Err(anyhow!("Cannot submit answers during setup phase")),
+        }
+    }
+
+    pub fn join_team(&mut self, player: UserId, team_name: &str) -> Result<()> {
+        match &mut self.current_phase {
+            Phase::Setup(state) => {
+                // Remove player from existing team
+                for team in state.teams.iter_mut() {
+                    team.players.remove(&player);
+                }
+
+                // Put player on his desired team
+                let mut team = state.teams.iter_mut().find(|team| team.name == team_name);
+                if team.is_none() {
+                    let new_team = Team::new(team_name.into());
+                    state.teams.push(new_team);
+                    team = Some(state.teams.iter_mut().last().expect("Team not found"));
+                }
+                if let Some(team) = team {
+                    team.players.insert(player);
+                }
+
+                // Remove empty teams
+                state.teams.retain(|t| !t.players.is_empty());
+
+                Ok(())
+            }
+            _ => Err(anyhow!("Cannot join a team outside of setup phase")),
+        }
+    }
+
+    pub fn get_teams(&self) -> &Vec<Team> {
+        match &self.current_phase {
+            Phase::Setup(state) => &state.teams,
+            Phase::Quizz(quizz) => quizz.get_teams(),
+            Phase::Startup => unreachable!(), // TODO inelegant
         }
     }
 }
