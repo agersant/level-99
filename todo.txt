@@ -12,6 +12,7 @@
 [] Reset teams command
 [] Post answers in chat after questions
 [] Warning for 30 and 10 seconds left
+[] Command permissions
 [] Pause/unpause
 [] End quizz command
 [] Bot personality (image, name, texts)
