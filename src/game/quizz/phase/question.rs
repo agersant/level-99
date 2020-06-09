@@ -31,6 +31,10 @@ impl QuestionState {
         guessed_correctly
     }
 
+    pub fn get_question(&self) -> &Question {
+        &self.question
+    }
+
     fn is_over(&self) -> bool {
         self.time_elapsed >= self.time_limit
     }

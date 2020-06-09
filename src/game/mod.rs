@@ -20,28 +20,39 @@ enum Phase {
     Quizz(Quizz),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum TeamId {
+    TeamName(String),
+}
+
 #[derive(Clone, Debug)]
 pub struct Team {
-    name: String,
+    id: TeamId,
     players: HashSet<UserId>,
     score: i32,
 }
 
 impl Team {
-    pub fn new(name: String) -> Self {
+    pub fn new(id: TeamId) -> Self {
         Team {
-            name,
+            id,
             score: 0,
             players: HashSet::new(),
         }
     }
 
-    pub fn get_name(&self) -> &str {
-        &self.name
+    pub fn get_display_name(&self) -> &str {
+        match &self.id {
+            TeamId::TeamName(name) => &name,
+        }
     }
 
     pub fn get_players(&self) -> &HashSet<UserId> {
         &self.players
+    }
+
+    pub fn update_score(&mut self, delta: i32) {
+        self.score += delta;
     }
 }
 
@@ -101,10 +112,16 @@ impl Game {
         }
     }
 
-    pub fn guess(&mut self, guess: &str) -> Result<()> {
+    pub fn guess(&mut self, player: UserId, guess: &str) -> Result<()> {
+        let team_id = self
+            .get_player_team(player)
+            .context("Player is not on a team")?
+            .id
+            .clone();
+
         match &mut self.current_phase {
             Phase::Quizz(quizz) => {
-                quizz.guess(guess)?;
+                quizz.guess(&team_id, guess)?;
                 Ok(())
             }
             _ => Err(anyhow!("Cannot submit answers during setup phase")),
@@ -120,9 +137,10 @@ impl Game {
                 }
 
                 // Put player on his desired team
-                let mut team = state.teams.iter_mut().find(|team| team.name == team_name);
+                let team_id = TeamId::TeamName(team_name.into());
+                let mut team = state.teams.iter_mut().find(|team| team.id == team_id);
                 if team.is_none() {
-                    let new_team = Team::new(team_name.into());
+                    let new_team = Team::new(team_id);
                     state.teams.push(new_team);
                     team = Some(state.teams.iter_mut().last().expect("Team not found"));
                 }
@@ -137,6 +155,11 @@ impl Game {
             }
             _ => Err(anyhow!("Cannot join a team outside of setup phase")),
         }
+    }
+
+    fn get_player_team(&self, player: UserId) -> Option<&Team> {
+        let teams = self.get_teams();
+        teams.iter().find(|t| t.players.contains(&player))
     }
 
     pub fn get_teams(&self) -> &Vec<Team> {

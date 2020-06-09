@@ -6,8 +6,8 @@ use std::time::Duration;
 use self::definition::*;
 use self::phase::*;
 use self::settings::*;
-use crate::game::Team;
-use crate::output::OutputPipe;
+use crate::game::{Team, TeamId};
+use crate::output::{OutputPipe, Payload};
 
 pub mod definition;
 mod phase;
@@ -86,39 +86,65 @@ impl Quizz {
         &self.teams
     }
 
+    fn get_team_mut(&mut self, id: &TeamId) -> Option<&mut Team> {
+        self.teams.iter_mut().find(|t| t.id == *id)
+    }
+
     fn set_current_phase(&mut self, phase: Phase) {
         let mut output_pipe = self.output_pipe.write();
+
         let state = self.current_phase.get_state();
         state.end(&mut output_pipe);
+
         println!("Entering quizz phase: {:?}", &phase);
         self.current_phase = phase;
+
         let state = self.current_phase.get_state();
         state.begin(&mut output_pipe);
     }
 
     pub fn tick(&mut self, dt: Duration) {
         let transition = {
-            let mut output_pipe = self.output_pipe.write();
             let state = self.current_phase.get_state();
-            state.tick(&mut output_pipe, dt)
+            state.tick(&mut self.output_pipe.write(), dt)
         };
         self.process_transition(transition);
     }
 
-    pub fn guess(&mut self, guess: &str) -> Result<()> {
-        match &mut self.current_phase {
+    pub fn guess(&mut self, team: &TeamId, guess: &str) -> Result<()> {
+        let transition = match &mut self.current_phase {
             Phase::Question(question_state) => {
-                let guessed_correctly = {
-                    let mut output_pipe = self.output_pipe.write();
-                    question_state.guess(guess, &mut output_pipe)
-                };
+                let guessed_correctly = question_state.guess(guess, &mut self.output_pipe.write());
+                let score_value = question_state.get_question().score_value as i32;
+                let team = self.get_team_mut(team).context("Team not found")?;
+                let team_display_name = team.get_display_name().to_owned();
+
                 if guessed_correctly {
-                    self.process_transition(Some(Transition::ToCooldownPhase))
+                    team.update_score(score_value);
+                    self.broadcast(Payload::Text(format!(
+                        "Team {} earns {} points!",
+                        team_display_name, score_value
+                    )));
+                    Some(Transition::ToCooldownPhase)
+                } else {
+                    team.update_score(-score_value);
+                    self.broadcast(Payload::Text(format!(
+                        "Team {} loses {} points. Womp womp 📯",
+                        team_display_name, score_value
+                    )));
+                    None
                 }
-                Ok(())
             }
-            _ => Err(anyhow!("There is no active question")),
-        }
+            _ => return Err(anyhow!("There is no active question")),
+        };
+
+        self.process_transition(transition);
+        Ok(())
+    }
+
+    fn broadcast(&self, payload: Payload) {
+        let mut output_pipe = self.output_pipe.write();
+        output_pipe.push(payload);
     }
 
     fn process_transition(&mut self, transition: Option<Transition>) {

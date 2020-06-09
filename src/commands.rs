@@ -57,7 +57,7 @@ fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         let mut game = game_lock.lock();
 
         let guess = args.rest();
-        game.guess(&guess)
+        game.guess(msg.author.id, &guess)
             .with_context(|| format!("Could not process guess {}", guess))?;
         Ok(())
     }();

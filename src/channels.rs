@@ -1,7 +1,7 @@
 use anyhow::*;
 use serenity::{
     client::Context as SerenityContext,
-    model::channel::{ChannelType, Message, PermissionOverwrite, PermissionOverwriteType},
+    model::channel::{ChannelType, PermissionOverwrite, PermissionOverwriteType},
     model::id::{GuildId, RoleId},
     model::permissions::Permissions,
 };
@@ -43,7 +43,7 @@ pub fn update_team_channels(
         }
         if teams
             .iter()
-            .find(|t| t.get_name() == channel.name())
+            .find(|t| t.get_display_name() == channel.name())
             .is_some()
         {
             continue;
@@ -57,15 +57,15 @@ pub fn update_team_channels(
         if channels
             .iter()
             .find(|(_id, channel)| {
-                channel.name() == team.get_name()
+                channel.name() == team.get_display_name()
                     && channel.category_id == Some(team_channel_category)
             })
             .is_none()
         {
-            println!("Creating team channel: {}", team.get_name());
+            println!("Creating team channel: {}", team.get_display_name());
             guild_id
                 .create_channel(&ctx.http, |c| {
-                    c.name(team.get_name())
+                    c.name(team.get_display_name())
                         .category(team_channel_category)
                         .permissions(vec![PermissionOverwrite {
                             deny: Permissions::READ_MESSAGES,
@@ -83,7 +83,10 @@ pub fn update_team_channels(
         if channel.category_id != Some(team_channel_category) {
             continue;
         }
-        if let Some(team) = teams.iter().find(|t| t.get_name() == channel.name()) {
+        if let Some(team) = teams
+            .iter()
+            .find(|t| t.get_display_name() == channel.name())
+        {
             // Don't allow non-team members to read
             for permission in &channel.permission_overwrites {
                 if let PermissionOverwriteType::Member(user_id) = permission.kind {

@@ -7,6 +7,7 @@ use std::path::Path;
 pub struct Question {
     pub url: String,
     pub answer: String,
+    pub score_value: u32,
 }
 
 impl Question {

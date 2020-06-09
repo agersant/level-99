@@ -1,16 +1,20 @@
 [x] Time limit on question
 [x] Return to setup phase when quizz is over
 [x] Team channels
-[] Scoring
+[x] Guessing earns or removes points
 [] Team can only guess once
-[] Multiple teams can answer
-[] Voting & question categories
+[] Multiple teams can get points
+[] Voting
+[] Categories
 [] Regex/fuzzy guesses
-[] Don't allow begin without joining voice room
+[] Don't allow begin before joining voice room
 [] Reset scores command
 [] Reset teams command
 [] Announce answers in chat after questions
-[] Announce score between questions
+[] Command to adjust scores
+[] Recap score between questions
+[] Join team mid-game if not already on a team
+[] Beta test!
 
 !!!MVP!!!
 
@@ -23,8 +27,12 @@
 [] End quizz command
 [] Bot personality (image, name, texts)
 [] Review TODO comments
+[] Unit tests
+[] Post quizz updates to team channels
 [] Create game on ready and on join server instead of within get_game()
 [] Skip cooldown phase after last question
-[] Score multiplier for follow-up rounds (settings.toml?)
+[] Add sound effects for: correct answer, wrong answer, time's up, question start
 [] Announce winning team
-[] Audio jingles
+[] Solo play
+[] Score multiplier for follow-up rounds (settings.toml?)
+[] Disk persistence
