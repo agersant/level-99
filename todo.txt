@@ -1,4 +1,4 @@
-[] Time limit on question
+[x] Time limit on question
 [] Return to setup phase when quizz is over
 [] Team channels
 [] Scoring

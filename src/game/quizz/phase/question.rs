@@ -30,11 +30,23 @@ impl QuestionState {
         }
         guessed_correctly
     }
+
+    fn is_over(&self) -> bool {
+        self.time_elapsed >= self.time_limit
+    }
 }
 
 impl State for QuestionState {
-    fn tick(&mut self, _output_pipe: &mut OutputPipe, _dt: Duration) -> Option<Transition> {
-        None
+    fn tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) -> Option<Transition> {
+        self.time_elapsed += dt;
+        if !self.is_over() {
+            None
+        } else {
+            output_pipe.push(Payload::Text(
+                "Time's up! No one guessed the answer.".into(),
+            ));
+            Some(Transition::ToCooldownPhase)
+        }
     }
 
     fn begin(&mut self, output_pipe: &mut OutputPipe) {
