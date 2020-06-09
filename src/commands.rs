@@ -33,7 +33,7 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         game.begin(path)
             .with_context(|| format!("Could not begin quizz with path {:?}", path))?;
 
-        check_msg(msg.channel_id.say(&ctx.http, "The quizz begins!"));
+        check_msg(msg.channel_id.say(&ctx.http, "The quizz begins!")); // TODO emit from quizz instead
         Ok(())
     }();
 
