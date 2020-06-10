@@ -3,6 +3,7 @@ use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serenity::model::id::MessageId;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ops::Deref;
 use std::time::Duration;
 
@@ -28,7 +29,7 @@ pub struct VoteState {
 impl VoteState {
     pub fn new(
         duration: Duration,
-        remaining_questions: &Vec<Question>,
+        remaining_questions: &HashSet<Question>,
         voting_team: Option<TeamId>,
         teams: Vec<Team>,
         max_vote_options: usize,
@@ -54,7 +55,7 @@ impl VoteState {
     }
 
     fn select_vote_options(
-        remaining_questions: &Vec<Question>,
+        remaining_questions: &HashSet<Question>,
         max_vote_options: usize,
     ) -> Vec<Question> {
         let max_vote_options = max_vote_options.min(VOTE_REACTIONS.len());

@@ -1,5 +1,6 @@
 use anyhow::*;
 use parking_lot::RwLock;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -52,7 +53,7 @@ pub struct Quizz {
     settings: Settings,
     current_phase: Phase,
     initiative: Option<TeamId>,
-    remaining_questions: Vec<Question>,
+    remaining_questions: HashSet<Question>,
     output_pipe: Arc<RwLock<OutputPipe>>,
 }
 
@@ -187,20 +188,13 @@ impl Quizz {
     fn select_question(&mut self) -> Option<Question> {
         if let Phase::Vote(vote_state) = &self.current_phase {
             if let Some(question) = vote_state.get_vote_results() {
-                if let Some((index, _question)) = self
-                    .remaining_questions
-                    .iter()
-                    .enumerate()
-                    .find(|(_i, q)| *q == question)
-                {
-                    return Some(self.remaining_questions.swap_remove(index));
-                }
+                return self.remaining_questions.take(question);
             }
         }
-        if self.remaining_questions.is_empty() {
-            None
-        } else {
-            Some(self.remaining_questions.swap_remove(0))
+        let question = self.remaining_questions.iter().next().cloned();
+        if let Some(question) = question {
+            return self.remaining_questions.take(&question);
         }
+        None
     }
 }

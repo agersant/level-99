@@ -7,7 +7,7 @@ MVP:
 [x] Multiple teams can get points
 [x] Voting
 [x] Categories
-[] Regex/fuzzy guesses
+[x] Regex/fuzzy guesses
 [] Don't allow begin before joining voice room
 [x] Announce answers in chat after questions
 [] Command to adjust scores
