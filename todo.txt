@@ -10,12 +10,12 @@ MVP:
 [x] Regex/fuzzy guesses
 [x] Don't allow begin before joining voice room
 [x] Announce answers in chat after questions
-[] Command to adjust scores
 [] Recap score between questions
-[] Go straight to results after last question
 [] Join team mid-game if not already on a team
-[] Reset scores command
-[] Reset teams command
+[] Go straight to results after last question
+[] Command to adjust scores
+[] Command to reset scores
+[] Command to reset teams
 [] Beta test!
 
 Nice to have:
