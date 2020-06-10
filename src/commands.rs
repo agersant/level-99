@@ -11,10 +11,11 @@ use std::path::Path;
 
 use crate::channels::*;
 use crate::game::pool::Pool as GamePool;
+use crate::game::team::TeamId;
 use crate::VoiceManager;
 
 #[group]
-#[commands(begin, guess, join, skip, team)]
+#[commands(begin, guess, join, score, skip, team)]
 struct General;
 
 const ERROR_MISSING_GUILD: &'static str = "This command cannot be used in a group or DM.";
@@ -126,6 +127,38 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
         check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
     }
 
+    Ok(())
+}
+
+#[command]
+fn score(ctx: &mut SerenityContext, msg: &Message, mut args: Args) -> CommandResult {
+    let result = || -> Result<()> {
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+
+        let team_name = args
+            .single::<String>()
+            .context("Could not parse team name")?;
+        let score_delta = args
+            .single::<i32>()
+            .context("Could not parse score delta")?;
+        let team_id = TeamId::TeamName(team_name);
+        game.adjust_score(team_id, score_delta)?;
+
+        Ok(())
+    }();
+
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
+    }
     Ok(())
 }
 

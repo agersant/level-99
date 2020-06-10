@@ -12,7 +12,7 @@ pub mod team;
 use self::quizz::definition::QuizzDefinition;
 use self::quizz::Quizz;
 use self::team::{Team, TeamId, TeamsHandle};
-use crate::output::OutputPipe;
+use crate::output::{OutputPipe, Payload};
 
 #[derive(Debug)]
 enum Phase {
@@ -123,6 +123,22 @@ impl Game {
         // Remove empty teams
         teams.retain(|t| !t.players.is_empty());
 
+        Ok(())
+    }
+
+    pub fn adjust_score(&mut self, team_id: TeamId, delta: i32) -> Result<()> {
+        let mut teams = self.teams.write();
+        let team = teams
+            .iter_mut()
+            .find(|t| t.id == team_id)
+            .context("Team not found")?;
+        team.update_score(delta);
+        let mut output_pipe = self.output_pipe.write();
+        output_pipe.push(Payload::Text(format!(
+            "Team {}'s score was updated to {} points",
+            team.get_display_name(),
+            team.score
+        )));
         Ok(())
     }
 
