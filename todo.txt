@@ -9,7 +9,7 @@ MVP:
 [x] Categories
 [] Regex/fuzzy guesses
 [] Don't allow begin before joining voice room
-[] Announce answers in chat after questions
+[x] Announce answers in chat after questions
 [] Command to adjust scores
 [] Recap score between questions
 [] Go straight to results after last question
@@ -28,11 +28,11 @@ Nice to have:
 [] End quizz command
 [] Skip question command
 [] Bot personality (image, name, texts)
+[] Announce winning team
 [] Review TODO comments
 [] Unit tests
 
 Extra work:
-[] Announce winning team
 [] Daily double
 [] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
 [] Create game on ready and on join server instead of within get_game()
