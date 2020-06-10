@@ -84,7 +84,7 @@ impl State for QuestionState {
             None
         } else {
             output_pipe.push(Payload::Text(format!(
-                "⏰ Time's up! The answer was _{}_:\n{}",
+                "⏰ Time's up! The answer was **{}**:\n{}",
                 self.question.answer, self.question.url
             )));
             Some(Transition::ToCooldownPhase)
