@@ -7,6 +7,7 @@ use serenity::prelude::Mutex;
 use serenity::voice;
 use std::sync::Arc;
 
+// TODO get rid of this and OutputResult. Make more methods on OutputPipe instead
 #[derive(Clone, Hash)]
 pub enum Payload {
     Text(String),
