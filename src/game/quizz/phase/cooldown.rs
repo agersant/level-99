@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::game::quizz::{State, Transition};
+use crate::game::quizz::State;
 use crate::output::OutputPipe;
 
 #[derive(Debug)]
@@ -16,23 +16,18 @@ impl CooldownState {
             time_to_wait: duration,
         }
     }
+}
+
+impl State for CooldownState {
+    fn on_begin(&mut self, _output_pipe: &mut OutputPipe) {}
+
+    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {
+        self.time_elapsed += dt;
+    }
+
+    fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}
 
     fn is_over(&self) -> bool {
         self.time_elapsed >= self.time_to_wait
     }
-}
-
-impl State for CooldownState {
-    fn tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) -> Option<Transition> {
-        self.time_elapsed += dt;
-        if !self.is_over() {
-            None
-        } else {
-            Some(Transition::ToVotePhase)
-        }
-    }
-
-    fn begin(&mut self, _output_pipe: &mut OutputPipe) {}
-
-    fn end(&mut self, _output_pipe: &mut OutputPipe) {}
 }

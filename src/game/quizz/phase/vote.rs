@@ -8,7 +8,7 @@ use std::ops::Deref;
 use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
-use crate::game::quizz::{State, Transition};
+use crate::game::quizz::State;
 use crate::game::{Team, TeamId};
 use crate::output::{OutputPipe, OutputResult, Payload};
 
@@ -48,10 +48,6 @@ impl VoteState {
 
     pub fn get_vote_results(&self) -> &Option<Question> {
         &self.chosen_question
-    }
-
-    fn is_over(&self) -> bool {
-        self.time_elapsed >= self.time_to_wait
     }
 
     fn select_vote_options(
@@ -144,19 +140,7 @@ impl VoteState {
 }
 
 impl State for VoteState {
-    fn tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) -> Option<Transition> {
-        self.time_elapsed += dt;
-        if !self.is_over() {
-            None
-        } else {
-            if let Err(e) = self.compute_vote_result(output_pipe) {
-                eprintln!("Could not compute vote results: {:#}", e);
-            }
-            Some(Transition::ToQuestionPhase)
-        }
-    }
-
-    fn begin(&mut self, output_pipe: &mut OutputPipe) {
+    fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
         let speaking_to = match &self.voting_team {
             None => "Everyone".into(),
             Some(TeamId::TeamName(name)) => format!("Team {}", name),
@@ -182,5 +166,18 @@ impl State for VoteState {
         }
     }
 
-    fn end(&mut self, _output_pipe: &mut OutputPipe) {}
+    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) {
+        self.time_elapsed += dt;
+        if self.is_over() {
+            if let Err(e) = self.compute_vote_result(output_pipe) {
+                eprintln!("Could not compute vote results: {:#}", e);
+            }
+        }
+    }
+
+    fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}
+
+    fn is_over(&self) -> bool {
+        self.time_elapsed >= self.time_to_wait
+    }
 }

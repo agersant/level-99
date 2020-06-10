@@ -14,7 +14,7 @@ use crate::game::pool::Pool as GamePool;
 use crate::VoiceManager;
 
 #[group]
-#[commands(begin, guess, join, team)]
+#[commands(begin, guess, join, skip, team)]
 struct General;
 
 const ERROR_MISSING_GUILD: &'static str = "This command cannot be used in a group or DM.";
@@ -127,6 +127,29 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
         check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
     }
 
+    Ok(())
+}
+
+#[command]
+fn skip(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let result = || -> Result<()> {
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+        game.skip()?;
+        Ok(())
+    }();
+
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
+    }
     Ok(())
 }
 

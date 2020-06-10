@@ -15,9 +15,10 @@ mod phase;
 mod settings;
 
 trait State {
-    fn begin(&mut self, output_pipe: &mut OutputPipe);
-    fn tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) -> Option<Transition>;
-    fn end(&mut self, output_pipe: &mut OutputPipe);
+    fn on_begin(&mut self, output_pipe: &mut OutputPipe);
+    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration);
+    fn on_end(&mut self, output_pipe: &mut OutputPipe);
+    fn is_over(&self) -> bool;
 }
 
 #[derive(Debug)]
@@ -27,13 +28,6 @@ enum Phase {
     Vote(VoteState),
     Question(QuestionState),
     Results(ResultsState),
-}
-
-enum Transition {
-    ToCooldownPhase,
-    ToVotePhase,
-    ToQuestionPhase,
-    ToResultsPhase,
 }
 
 impl Phase {
@@ -97,21 +91,21 @@ impl Quizz {
         let mut output_pipe = self.output_pipe.write();
 
         let state = self.current_phase.get_state();
-        state.end(&mut output_pipe);
+        state.on_end(&mut output_pipe);
 
         println!("Entering quizz phase: {:?}", &phase);
         self.current_phase = phase;
 
         let state = self.current_phase.get_state();
-        state.begin(&mut output_pipe);
+        state.on_begin(&mut output_pipe);
     }
 
     pub fn tick(&mut self, dt: Duration) {
-        let transition = {
-            let state = self.current_phase.get_state();
-            state.tick(&mut self.output_pipe.write(), dt)
-        };
-        self.process_transition(transition);
+        let state = self.current_phase.get_state();
+        state.on_tick(&mut self.output_pipe.write(), dt);
+        if state.is_over() {
+            self.advance();
+        }
     }
 
     pub fn guess(&mut self, team_id: &TeamId, guess: &str) -> Result<()> {
@@ -152,37 +146,47 @@ impl Quizz {
         output_pipe.push(payload);
     }
 
-    fn process_transition(&mut self, transition: Option<Transition>) {
-        match transition {
-            Some(Transition::ToCooldownPhase) => {
-                let state = CooldownState::new(self.settings.cooldown_duration);
-                self.set_current_phase(Phase::Cooldown(state));
+    pub fn skip_phase(&mut self) {
+        self.advance();
+    }
+
+    fn advance(&mut self) {
+        match &self.current_phase {
+            Phase::Startup(_s) => {
+                self.begin_vote();
             }
-            Some(Transition::ToVotePhase) => {
-                let state = VoteState::new(
-                    self.settings.vote_duration,
-                    &self.remaining_questions,
-                    self.initiative.clone(),
-                    self.teams.clone(),
-                    self.settings.max_vote_options,
-                );
-                self.set_current_phase(Phase::Vote(state));
+            Phase::Vote(_s) => {
+                if let Some(question) = self.select_question() {
+                    let state = QuestionState::new(question, self.settings.question_duration);
+                    self.set_current_phase(Phase::Question(state));
+                } else {
+                    self.set_current_phase(Phase::Results(ResultsState::new()));
+                }
             }
-            Some(Transition::ToQuestionPhase) => {
-                match self.select_question() {
-                    None => self.process_transition(Some(Transition::ToResultsPhase)),
-                    Some(question) => {
-                        let state = QuestionState::new(question, self.settings.question_duration);
-                        self.set_current_phase(Phase::Question(state));
-                    }
-                };
+            Phase::Question(_s) => {
+                if self.remaining_questions.is_empty() {
+                    self.set_current_phase(Phase::Results(ResultsState::new()));
+                } else {
+                    let state = CooldownState::new(self.settings.cooldown_duration);
+                    self.set_current_phase(Phase::Cooldown(state));
+                }
             }
-            Some(Transition::ToResultsPhase) => {
-                let state = ResultsState::new();
-                self.set_current_phase(Phase::Results(state));
+            Phase::Cooldown(_s) => {
+                self.begin_vote();
             }
-            None => (),
+            Phase::Results(_s) => (),
         }
+    }
+
+    fn begin_vote(&mut self) {
+        let state = VoteState::new(
+            self.settings.vote_duration,
+            &self.remaining_questions,
+            self.initiative.clone(),
+            self.teams.clone(),
+            self.settings.max_vote_options,
+        );
+        self.set_current_phase(Phase::Vote(state));
     }
 
     fn select_question(&mut self) -> Option<Question> {

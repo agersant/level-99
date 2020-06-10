@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
-use crate::game::quizz::{State, Transition};
+use crate::game::quizz::State;
 use crate::game::TeamId;
 use crate::output::{OutputPipe, Payload};
 
@@ -71,27 +71,14 @@ impl QuestionState {
             delta / 2
         }
     }
-
-    fn is_over(&self) -> bool {
-        self.time_elapsed >= self.time_limit
-    }
 }
 
 impl State for QuestionState {
-    fn tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) -> Option<Transition> {
+    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {
         self.time_elapsed += dt;
-        if !self.is_over() {
-            None
-        } else {
-            output_pipe.push(Payload::Text(format!(
-                "⏰ Time's up! The answer was **{}**:\n{}",
-                self.question.answer, self.question.url
-            )));
-            Some(Transition::ToCooldownPhase)
-        }
     }
 
-    fn begin(&mut self, output_pipe: &mut OutputPipe) {
+    fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
         output_pipe.push(Payload::Text(format!(
             "🎧 Here's a song from the **{}** category for {} points!",
             self.question.category, self.question.score_value
@@ -99,7 +86,15 @@ impl State for QuestionState {
         output_pipe.push(Payload::Audio(self.question.url.clone()));
     }
 
-    fn end(&mut self, output_pipe: &mut OutputPipe) {
+    fn on_end(&mut self, output_pipe: &mut OutputPipe) {
+        output_pipe.push(Payload::Text(format!(
+            "⏰ Time's up! The answer was **{}**:\n{}",
+            self.question.answer, self.question.url
+        )));
         output_pipe.push(Payload::StopAudio);
+    }
+
+    fn is_over(&self) -> bool {
+        self.time_elapsed >= self.time_limit
     }
 }

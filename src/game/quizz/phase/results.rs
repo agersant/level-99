@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::game::quizz::{State, Transition};
+use crate::game::quizz::State;
 use crate::output::OutputPipe;
 
 #[derive(Debug)]
@@ -13,11 +13,13 @@ impl ResultsState {
 }
 
 impl State for ResultsState {
-    fn tick(&mut self, _output_pipe: &mut OutputPipe, _dt: Duration) -> Option<Transition> {
-        None
+    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, _dt: Duration) {}
+
+    fn on_begin(&mut self, _output_pipe: &mut OutputPipe) {}
+
+    fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}
+
+    fn is_over(&self) -> bool {
+        false
     }
-
-    fn begin(&mut self, _output_pipe: &mut OutputPipe) {}
-
-    fn end(&mut self, _output_pipe: &mut OutputPipe) {}
 }

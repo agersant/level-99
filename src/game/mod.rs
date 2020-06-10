@@ -112,6 +112,16 @@ impl Game {
         }
     }
 
+    pub fn skip(&mut self) -> Result<()> {
+        match &mut self.current_phase {
+            Phase::Quizz(q) => {
+                q.skip_phase();
+                Ok(())
+            }
+            _ => Err(anyhow!("There is no quizz in progress")),
+        }
+    }
+
     pub fn guess(&mut self, player: UserId, guess: &str) -> Result<()> {
         let team_id = self
             .get_player_team(player)
