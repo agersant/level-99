@@ -8,6 +8,7 @@ use serenity::voice;
 use std::sync::Arc;
 
 // TODO get rid of this and OutputResult. Make more methods on OutputPipe instead
+// Also keep more references to the Arc<RwLock<OutputPipe>> instead of passing it to a bunch of functions
 #[derive(Clone, Hash)]
 pub enum Payload {
     Text(String),
