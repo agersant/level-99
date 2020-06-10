@@ -11,7 +11,7 @@ MVP:
 [x] Don't allow begin before joining voice room
 [x] Announce answers in chat after questions
 [x] Command to skip quizz phase
-[] Recap score between questions
+[x] Recap score between questions
 [] Join team mid-game if not already on a team
 [] Go straight to results after last question
 [] Command to adjust scores

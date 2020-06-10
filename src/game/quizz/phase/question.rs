@@ -1,10 +1,11 @@
 use anyhow::*;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
-use crate::game::TeamId;
+use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Payload};
 
 #[derive(Clone, Debug)]
@@ -21,15 +22,17 @@ pub struct QuestionState {
     time_elapsed: Duration,
     time_limit: Duration,
     guesses: HashMap<TeamId, GuessResult>,
+    teams: TeamsHandle,
 }
 
 impl QuestionState {
-    pub fn new(question: Question, duration: Duration) -> Self {
+    pub fn new(question: Question, duration: Duration, teams: TeamsHandle) -> Self {
         QuestionState {
             question,
             time_elapsed: Duration::default(),
             time_limit: duration,
             guesses: HashMap::new(),
+            teams,
         }
     }
 
@@ -71,6 +74,29 @@ impl QuestionState {
             delta / 2
         }
     }
+
+    fn print_scores(&self, output_pipe: &mut OutputPipe) {
+        let mut teams = self.teams.read().clone();
+        teams.sort_by_key(|t| Reverse(t.score));
+
+        let mut recap = "Here are the scores so far:".to_owned();
+        for (index, team) in teams.iter().enumerate() {
+            let rank = match index {
+                0 => "🥇".to_owned(),
+                1 => "🥈".to_owned(),
+                2 => "🥉".to_owned(),
+                _ => format!("#{}", index + 1),
+            };
+            recap.push_str(&format!(
+                "\n{} **Team {}** with {} points",
+                rank,
+                team.get_display_name(),
+                team.score
+            ));
+        }
+
+        output_pipe.push(Payload::Text(recap));
+    }
 }
 
 impl State for QuestionState {
@@ -92,6 +118,7 @@ impl State for QuestionState {
             self.question.answer, self.question.url
         )));
         output_pipe.push(Payload::StopAudio);
+        self.print_scores(output_pipe);
     }
 
     fn is_over(&self) -> bool {

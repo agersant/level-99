@@ -153,7 +153,11 @@ impl Quizz {
             }
             Phase::Vote(_s) => {
                 if let Some(question) = self.select_question() {
-                    let state = QuestionState::new(question, self.settings.question_duration);
+                    let state = QuestionState::new(
+                        question,
+                        self.settings.question_duration,
+                        self.teams.clone(),
+                    );
                     self.set_current_phase(Phase::Question(state));
                 } else {
                     self.set_current_phase(Phase::Results(ResultsState::new()));
