@@ -14,6 +14,8 @@ use crate::game::pool::Pool as GamePool;
 use crate::game::team::TeamId;
 use crate::VoiceManager;
 
+pub mod reset;
+
 #[group]
 #[commands(begin, guess, join, score, skip, team)]
 struct General;
@@ -69,13 +71,13 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
 #[command]
 fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
-        let manager = ctx
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
 
         let guess = args.rest();
@@ -110,13 +112,13 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
         }
     };
 
-    let manager_lock = ctx
+    let voice_manager_lock = ctx
         .data
         .read()
         .get::<VoiceManager>()
         .cloned()
         .expect("Expected VoiceManager in ShareMap.");
-    let mut manager = manager_lock.lock();
+    let mut manager = voice_manager_lock.lock();
 
     if manager.join(guild_id, connect_to).is_some() {
         check_msg(

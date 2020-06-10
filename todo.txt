@@ -15,8 +15,8 @@ MVP:
 [x] Join team mid-game if not already on a team
 [x] Go straight to results after last question
 [x] Command to adjust scores
-[] Command to reset scores
-[] Command to reset teams
+[x] Command to reset scores
+[x] Command to reset teams
 [] Beta test!
 
 Nice to have:

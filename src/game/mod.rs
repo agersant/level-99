@@ -142,6 +142,22 @@ impl Game {
         Ok(())
     }
 
+    pub fn reset_teams(&mut self) {
+        let mut teams = self.teams.write();
+        teams.clear();
+        let mut output_pipe = self.output_pipe.write();
+        output_pipe.push(Payload::Text(format!("Teams were reset")));
+    }
+
+    pub fn reset_scores(&mut self) {
+        let mut teams = self.teams.write();
+        for team in teams.iter_mut() {
+            team.score = 0;
+        }
+        let mut output_pipe = self.output_pipe.write();
+        output_pipe.push(Payload::Text(format!("Scores were reset")));
+    }
+
     fn get_player_team(&self, player: UserId) -> Option<TeamId> {
         let teams = self.get_teams();
         teams
