@@ -8,7 +8,7 @@ MVP:
 [x] Voting
 [x] Categories
 [x] Regex/fuzzy guesses
-[] Don't allow begin before joining voice room
+[x] Don't allow begin before joining voice room
 [x] Announce answers in chat after questions
 [] Command to adjust scores
 [] Recap score between questions

@@ -17,17 +17,39 @@ use crate::VoiceManager;
 #[commands(begin, guess, join, team)]
 struct General;
 
+const ERROR_MISSING_GUILD: &'static str = "This command cannot be used in a group or DM.";
+const ERROR_USER_NOT_IN_VOICE: &'static str = "You must be in a voice channel to use this command.";
+const ERROR_BOT_NOT_IN_VOICE: &'static str =
+    "Use the `!join` command to invite the bot to a voice channel before starting the quizz.";
+
 #[command]
 fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
-        let manager = ctx
+        let guild_id = msg
+            .guild(&ctx.cache)
+            .context(ERROR_MISSING_GUILD)?
+            .read()
+            .id;
+        let voice_manager_lock = ctx
+            .data
+            .read()
+            .get::<VoiceManager>()
+            .cloned()
+            .expect("Expected VoiceManager in ShareMap.");
+        let voice_manager = voice_manager_lock.lock();
+        if voice_manager.get(guild_id).is_none() {
+            return Err(anyhow!(ERROR_BOT_NOT_IN_VOICE));
+        }
+
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
+
         let path_string = args.parse::<String>().context("Filename cannot be blank")?;
         let path = Path::new(&path_string);
         game.begin(path)
@@ -35,13 +57,12 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         Ok(())
     }();
 
-    match result {
-        Err(e) => {
-            eprintln!("{:#}", e);
-            Err(CommandError(e.to_string()))
-        }
-        Ok(_) => Ok(()),
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
     }
+    Ok(())
 }
 
 #[command]
@@ -62,29 +83,17 @@ fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         Ok(())
     }();
 
-    match result {
-        Err(e) => {
-            eprintln!("{:#}", e);
-            Err(CommandError(e.to_string()))
-        }
-        Ok(_) => Ok(()),
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
     }
+    Ok(())
 }
 
 #[command]
 fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
-    let guild = match msg.guild(&ctx.cache) {
-        Some(guild) => guild,
-        None => {
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, "Groups and DMs not supported"),
-            );
-
-            return Ok(());
-        }
-    };
-
+    let guild = msg.guild(&ctx.cache).context(ERROR_MISSING_GUILD)?;
     let guild_id = guild.read().id;
 
     let channel_id = guild
@@ -96,7 +105,7 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     let connect_to = match channel_id {
         Some(channel) => channel,
         None => {
-            check_msg(msg.reply(&ctx, "Not in a voice channel"));
+            check_msg(msg.reply(&ctx, ERROR_USER_NOT_IN_VOICE));
             return Ok(());
         }
     };
@@ -139,26 +148,25 @@ fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
             game.join_team(msg.author.id, team_name)?;
         }
 
-        let guild = msg
+        let guild_id = msg
             .guild(&ctx.cache)
-            .context("Groups and DMs not supported")?;
-        let guild_id = guild.read().id;
+            .context(ERROR_MISSING_GUILD)?
+            .read()
+            .id;
         update_team_channels(ctx, guild_id, game.get_teams())?;
 
         Ok(())
     }();
 
-    match result {
-        Err(e) => {
-            eprintln!("{:#}", e);
-            Err(CommandError(e.to_string()))
-        }
-        Ok(_) => Ok(()),
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
     }
+    Ok(())
 }
 
-/// Checks that a message successfully sent; if not, then logs why to stdout.
-// TODO remove this
+// Checks that a message successfully sent; if not, then logs why to stdout.
 fn check_msg(result: SerenityResult<Message>) {
     if let Err(why) = result {
         eprintln!("Error sending message: {:?}", why);
