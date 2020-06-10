@@ -20,7 +20,6 @@ pub struct VoteState {
     time_elapsed: Duration,
     time_to_wait: Duration,
     vote_options: Vec<Question>,
-    chosen_question: Option<Question>,
     voting_team: Option<TeamId>,
     teams: TeamsHandle,
     vote_message_id: Option<MessageId>,
@@ -41,13 +40,8 @@ impl VoteState {
             voting_team,
             teams,
             vote_message_id: None,
-            chosen_question: None,
         };
         state
-    }
-
-    pub fn get_vote_results(&self) -> &Option<Question> {
-        &self.chosen_question
     }
 
     fn select_vote_options(
@@ -78,11 +72,7 @@ impl VoteState {
             .collect()
     }
 
-    fn compute_vote_result(&mut self, output_pipe: &mut OutputPipe) -> Result<()> {
-        if self.chosen_question.is_some() {
-            return Err(anyhow!("Vote results were already computed"));
-        }
-
+    pub fn compute_vote_result(&self, output_pipe: &mut OutputPipe) -> Result<Question> {
         let message_id = self.vote_message_id.context("No vote message")?;
         let mut vote_counts = HashMap::new();
 
@@ -130,13 +120,7 @@ impl VoteState {
             .context("Could not randomly select question")?
             .deref();
 
-        self.chosen_question = Some(chosen_question.clone());
-        println!(
-            "Most voted question: {:?}",
-            self.chosen_question.as_ref().unwrap()
-        );
-
-        Ok(())
+        Ok(chosen_question.clone())
     }
 }
 
@@ -167,13 +151,8 @@ impl State for VoteState {
         }
     }
 
-    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) {
+    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {
         self.time_elapsed += dt;
-        if self.is_over() {
-            if let Err(e) = self.compute_vote_result(output_pipe) {
-                eprintln!("Could not compute vote results: {:#}", e);
-            }
-        }
     }
 
     fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}

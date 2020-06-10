@@ -187,8 +187,9 @@ impl Quizz {
 
     fn select_question(&mut self) -> Option<Question> {
         if let Phase::Vote(vote_state) = &self.current_phase {
-            if let Some(question) = vote_state.get_vote_results() {
-                return self.remaining_questions.take(question);
+            let mut output_pipe = self.output_pipe.write();
+            if let Ok(question) = vote_state.compute_vote_result(&mut output_pipe) {
+                return self.remaining_questions.take(&question);
             }
         }
         let question = self.remaining_questions.iter().next().cloned();
