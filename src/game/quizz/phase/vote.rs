@@ -161,7 +161,7 @@ impl State for VoteState {
             Some(TeamId::TeamName(name)) => format!("Team {}", name),
         };
         let mut message: String = format!(
-            "🗳️ {}, vote for the next question by reacting to this message!\n",
+            "{}, vote for the next question by reacting to this message! 🗳️\n",
             speaking_to
         );
 
