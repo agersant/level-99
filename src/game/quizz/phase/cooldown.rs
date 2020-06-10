@@ -28,7 +28,7 @@ impl State for CooldownState {
         if !self.is_over() {
             None
         } else {
-            Some(Transition::ToQuestionPhase)
+            Some(Transition::ToVotePhase)
         }
     }
 

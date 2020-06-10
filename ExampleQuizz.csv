@@ -1,6 +1,11 @@
-url,answer,score_value
-https://www.youtube.com/watch?v=65LXFhqtt5k&list=PLDF2556A8C45BF850&index=5,Link's Awakening,200
-https://www.youtube.com/watch?v=nVeAYPjEg9M&list=PLEVosTvKxXmRLiKn-ueBWr0CLsd57OrRz,Guilty Gear XX,500
-https://www.youtube.com/watch?v=y43-XAmK1kc,Curse of Darkness,500
-https://www.youtube.com/watch?v=6QHc1D20dcU&list=PL750AE20AC197877F&index=11,Auto Modellista,800
-https://www.youtube.com/watch?v=wOJAErCvVhs,Volibear,500
+url,answer,category,score_value
+https://www.youtube.com/watch?v=wOJAErCvVhs,Volibear,2020,500
+https://www.youtube.com/watch?v=KqQPr3ZcbtE&list=PL5312754A0D082327&index=5&t=0s,Castlevania: Aria of Sorrow,Castlevania,400
+https://www.youtube.com/watch?v=y43-XAmK1kc,Castlevania: Curse of Darkness,Castlevania,500
+https://www.youtube.com/watch?v=Iof5pRAIZmw&list=PLrnb8c3hFJatjyJ-wFMuFGANNoo7-LZsG&index=61,Street Fighter II,Fighting Games,200
+https://www.youtube.com/watch?v=nVeAYPjEg9M&list=PLEVosTvKxXmRLiKn-ueBWr0CLsd57OrRz,Guilty Gear XX,Fighting Games,500
+https://www.youtube.com/watch?v=65LXFhqtt5k&list=PLDF2556A8C45BF850&index=5,The Legend of Zelda: Link's Awakening,Nintendo,200
+https://www.youtube.com/watch?v=waKumDkYrDY&list=PLrnb8c3hFJatjyJ-wFMuFGANNoo7-LZsG&index=8,Super Mario: World,Nintendo,300
+https://www.youtube.com/watch?v=tCxLKje7JKA&list=PLrnb8c3hFJatjyJ-wFMuFGANNoo7-LZsG&index=33,Donkey Kong Country 3,Nintendo,400
+https://www.youtube.com/watch?v=6ZES3aMABwU&list=PLrnb8c3hFJatjyJ-wFMuFGANNoo7-LZsG&index=90,Pokemon Sword and Shield,Nintendo,500
+https://www.youtube.com/watch?v=6QHc1D20dcU&list=PL750AE20AC197877F&index=11,Auto Modellista,Racing Games,800

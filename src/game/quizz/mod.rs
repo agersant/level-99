@@ -48,11 +48,12 @@ impl Phase {
 }
 #[derive(Debug)]
 pub struct Quizz {
-    settings: Settings,
-    remaining_questions: Vec<Question>,
-    current_phase: Phase,
-    output_pipe: Arc<RwLock<OutputPipe>>,
     teams: Vec<Team>,
+    settings: Settings,
+    current_phase: Phase,
+    initiative: Option<TeamId>,
+    remaining_questions: Vec<Question>,
+    output_pipe: Arc<RwLock<OutputPipe>>,
 }
 
 impl Quizz {
@@ -65,6 +66,7 @@ impl Quizz {
         let mut quizz = Quizz {
             remaining_questions: definition.get_questions().clone(),
             current_phase: Phase::Startup(StartupState::new()),
+            initiative: None,
             output_pipe,
             settings,
             teams,
@@ -123,15 +125,21 @@ impl Quizz {
                 team.update_score(guess_result.score_delta);
                 if guess_result.is_correct {
                     self.broadcast(Payload::Text(format!(
-                        "Team {} earns {} points!",
+                        "✅ Team {} guessed correctly and earned {} points!",
                         team_display_name, guess_result.score_delta
                     )));
                 } else {
                     self.broadcast(Payload::Text(format!(
-                        "Team {} loses {} points. Womp womp 📯",
-                        team_display_name, guess_result.score_delta
+                        "❌ Team {} guessed incorrectly and lost {} points. Womp womp 📯.",
+                        team_display_name,
+                        guess_result.score_delta.abs()
                     )));
                 }
+
+                if guess_result.is_first_correct {
+                    self.initiative = Some(team_id.clone());
+                }
+
                 Ok(())
             }
             _ => Err(anyhow!("There is no active question")),
@@ -150,7 +158,13 @@ impl Quizz {
                 self.set_current_phase(Phase::Cooldown(state));
             }
             Some(Transition::ToVotePhase) => {
-                let state = VoteState::new(self.settings.vote_duration);
+                let state = VoteState::new(
+                    self.settings.vote_duration,
+                    &self.remaining_questions,
+                    self.initiative.clone(),
+                    self.teams.clone(),
+                    self.settings.max_vote_options,
+                );
                 self.set_current_phase(Phase::Vote(state));
             }
             Some(Transition::ToQuestionPhase) => {
@@ -171,9 +185,22 @@ impl Quizz {
     }
 
     fn select_question(&mut self) -> Option<Question> {
-        if self.remaining_questions.is_empty() {
-            return None;
+        if let Phase::Vote(vote_state) = &self.current_phase {
+            if let Some(question) = vote_state.get_vote_results() {
+                if let Some((index, _question)) = self
+                    .remaining_questions
+                    .iter()
+                    .enumerate()
+                    .find(|(_i, q)| *q == question)
+                {
+                    return Some(self.remaining_questions.swap_remove(index));
+                }
+            }
         }
-        Some(self.remaining_questions.swap_remove(0))
+        if self.remaining_questions.is_empty() {
+            None
+        } else {
+            Some(self.remaining_questions.swap_remove(0))
+        }
     }
 }

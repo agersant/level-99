@@ -20,6 +20,6 @@ impl State for StartupState {
     fn begin(&mut self, _output_pipe: &mut OutputPipe) {}
 
     fn end(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.push(Payload::Text("The quizz begins!".into()))
+        output_pipe.push(Payload::Text("The quizz begins!".into()));
     }
 }

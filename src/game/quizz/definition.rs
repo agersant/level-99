@@ -3,10 +3,11 @@ use serde::Deserialize;
 use std::fs::File;
 use std::path::Path;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Eq)]
 pub struct Question {
     pub url: String,
     pub answer: String,
+    pub category: String,
     pub score_value: u32,
 }
 
