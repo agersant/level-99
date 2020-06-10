@@ -13,7 +13,7 @@ MVP:
 [x] Command to skip quizz phase
 [x] Recap score between questions
 [x] Join team mid-game if not already on a team
-[] Go straight to results after last question
+[x] Go straight to results after last question
 [] Command to adjust scores
 [] Command to reset scores
 [] Command to reset teams
