@@ -12,7 +12,7 @@ MVP:
 [x] Announce answers in chat after questions
 [x] Command to skip quizz phase
 [x] Recap score between questions
-[] Join team mid-game if not already on a team
+[x] Join team mid-game if not already on a team
 [] Go straight to results after last question
 [] Command to adjust scores
 [] Command to reset scores
