@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
-use crate::game::{Team, TeamId};
+use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, OutputResult, Payload};
 
 const VOTE_REACTIONS: &'static [&'static str] =
@@ -22,7 +22,7 @@ pub struct VoteState {
     vote_options: Vec<Question>,
     chosen_question: Option<Question>,
     voting_team: Option<TeamId>,
-    teams: Vec<Team>,
+    teams: TeamsHandle,
     vote_message_id: Option<MessageId>,
 }
 
@@ -31,7 +31,7 @@ impl VoteState {
         duration: Duration,
         remaining_questions: &HashSet<Question>,
         voting_team: Option<TeamId>,
-        teams: Vec<Team>,
+        teams: TeamsHandle,
         max_vote_options: usize,
     ) -> Self {
         let state = VoteState {
@@ -99,6 +99,7 @@ impl VoteState {
                 let is_valid_vote = match &self.voting_team {
                     Some(team_id) => self
                         .teams
+                        .read()
                         .iter()
                         .find(|t| &t.id == team_id)
                         .and_then(|t| Some(t.players.contains(player)))

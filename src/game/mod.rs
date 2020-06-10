@@ -1,74 +1,29 @@
 use anyhow::*;
 use parking_lot::RwLock;
 use serenity::model::id::UserId;
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 pub mod pool;
 mod quizz;
+pub mod team;
 
-use crate::game::quizz::definition::QuizzDefinition;
-use crate::game::quizz::Quizz;
+use self::quizz::definition::QuizzDefinition;
+use self::quizz::Quizz;
+use self::team::{Team, TeamId, TeamsHandle};
 use crate::output::OutputPipe;
 
 #[derive(Debug)]
 enum Phase {
     Startup,
-    Setup(SetupState),
+    Setup,
     Quizz(Quizz),
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum TeamId {
-    TeamName(String),
-}
-
-#[derive(Clone, Debug)]
-pub struct Team {
-    id: TeamId,
-    players: HashSet<UserId>,
-    score: i32,
-}
-
-impl Team {
-    pub fn new(id: TeamId) -> Self {
-        Team {
-            id,
-            score: 0,
-            players: HashSet::new(),
-        }
-    }
-
-    pub fn get_display_name(&self) -> &str {
-        match &self.id {
-            TeamId::TeamName(name) => &name,
-        }
-    }
-
-    pub fn get_players(&self) -> &HashSet<UserId> {
-        &self.players
-    }
-
-    pub fn update_score(&mut self, delta: i32) {
-        self.score += delta;
-    }
-}
-
-#[derive(Debug, Default)]
-struct SetupState {
-    teams: Vec<Team>,
-}
-
-impl SetupState {
-    pub fn new(teams: Vec<Team>) -> Self {
-        SetupState { teams }
-    }
 }
 
 pub struct Game {
     current_phase: Phase,
+    teams: TeamsHandle,
     output_pipe: Arc<RwLock<OutputPipe>>,
 }
 
@@ -76,9 +31,10 @@ impl Game {
     pub fn new(output_pipe: OutputPipe) -> Game {
         let mut game = Game {
             current_phase: Phase::Startup,
+            teams: Arc::new(RwLock::new(Vec::new())),
             output_pipe: Arc::new(RwLock::new(output_pipe)),
         };
-        game.set_current_phase(Phase::Setup(Default::default()));
+        game.set_current_phase(Phase::Setup);
         game
     }
 
@@ -89,12 +45,11 @@ impl Game {
 
     pub fn tick(&mut self, dt: Duration) {
         match &mut self.current_phase {
-            Phase::Startup | Phase::Setup(_) => (),
+            Phase::Startup | Phase::Setup => (),
             Phase::Quizz(quizz) => {
                 quizz.tick(dt);
                 if quizz.is_over() {
-                    let state = SetupState::new(quizz.get_teams().clone());
-                    self.set_current_phase(Phase::Setup(state));
+                    self.set_current_phase(Phase::Setup);
                 }
             }
         };
@@ -102,9 +57,9 @@ impl Game {
 
     pub fn begin(&mut self, quizz_path: &Path) -> Result<()> {
         match &self.current_phase {
-            Phase::Setup(state) => {
+            Phase::Setup => {
                 let definition = QuizzDefinition::open(quizz_path)?;
-                let quizz = Quizz::new(definition, state.teams.clone(), self.output_pipe.clone());
+                let quizz = Quizz::new(definition, self.teams.clone(), self.output_pipe.clone());
                 self.set_current_phase(Phase::Quizz(quizz));
                 Ok(())
             }
@@ -125,9 +80,7 @@ impl Game {
     pub fn guess(&mut self, player: UserId, guess: &str) -> Result<()> {
         let team_id = self
             .get_player_team(player)
-            .context("Player is not on a team")?
-            .id
-            .clone();
+            .context("Player is not on a team")?;
 
         match &mut self.current_phase {
             Phase::Quizz(quizz) => {
@@ -140,26 +93,28 @@ impl Game {
 
     pub fn join_team(&mut self, player: UserId, team_name: &str) -> Result<()> {
         match &mut self.current_phase {
-            Phase::Setup(state) => {
+            Phase::Setup => {
+                let mut teams = self.teams.write();
+
                 // Remove player from existing team
-                for team in state.teams.iter_mut() {
+                for team in teams.iter_mut() {
                     team.players.remove(&player);
                 }
 
                 // Put player on his desired team
                 let team_id = TeamId::TeamName(team_name.into());
-                let mut team = state.teams.iter_mut().find(|team| team.id == team_id);
+                let mut team = teams.iter_mut().find(|team| team.id == team_id);
                 if team.is_none() {
                     let new_team = Team::new(team_id);
-                    state.teams.push(new_team);
-                    team = Some(state.teams.iter_mut().last().expect("Team not found"));
+                    teams.push(new_team);
+                    team = Some(teams.iter_mut().last().expect("Team not found"));
                 }
                 if let Some(team) = team {
                     team.players.insert(player);
                 }
 
                 // Remove empty teams
-                state.teams.retain(|t| !t.players.is_empty());
+                teams.retain(|t| !t.players.is_empty());
 
                 Ok(())
             }
@@ -167,16 +122,15 @@ impl Game {
         }
     }
 
-    fn get_player_team(&self, player: UserId) -> Option<&Team> {
+    fn get_player_team(&self, player: UserId) -> Option<TeamId> {
         let teams = self.get_teams();
-        teams.iter().find(|t| t.players.contains(&player))
+        teams
+            .iter()
+            .find(|t| t.players.contains(&player))
+            .and_then(|t| Some(t.id.clone()))
     }
 
-    pub fn get_teams(&self) -> &Vec<Team> {
-        match &self.current_phase {
-            Phase::Setup(state) => &state.teams,
-            Phase::Quizz(quizz) => quizz.get_teams(),
-            Phase::Startup => unreachable!(), // TODO inelegant
-        }
+    pub fn get_teams(&self) -> Vec<Team> {
+        self.teams.read().clone()
     }
 }

@@ -6,7 +6,7 @@ use serenity::{
     model::permissions::Permissions,
 };
 
-use crate::game::Team;
+use crate::game::team::Team;
 
 const TEAM_CHANNELS_CATEGORY: &'static str = "Team Channels";
 
@@ -90,14 +90,14 @@ pub fn update_team_channels(
             // Don't allow non-team members to read
             for permission in &channel.permission_overwrites {
                 if let PermissionOverwriteType::Member(user_id) = permission.kind {
-                    if !team.get_players().contains(&user_id) {
+                    if !team.players.contains(&user_id) {
                         channel.delete_permission(&ctx.http, permission.kind)?;
                     }
                 }
             }
 
             // Allow team members to read
-            for player in team.get_players() {
+            for player in &team.players {
                 let has_permission = channel
                     .permission_overwrites
                     .iter()

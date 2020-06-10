@@ -7,7 +7,7 @@ use std::time::Duration;
 use self::definition::*;
 use self::phase::*;
 use self::settings::*;
-use crate::game::{Team, TeamId};
+use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Payload};
 
 pub mod definition;
@@ -43,7 +43,7 @@ impl Phase {
 }
 #[derive(Debug)]
 pub struct Quizz {
-    teams: Vec<Team>,
+    pub teams: TeamsHandle,
     settings: Settings,
     current_phase: Phase,
     initiative: Option<TeamId>,
@@ -54,7 +54,7 @@ pub struct Quizz {
 impl Quizz {
     pub fn new(
         definition: QuizzDefinition,
-        teams: Vec<Team>,
+        teams: TeamsHandle,
         output_pipe: Arc<RwLock<OutputPipe>>,
     ) -> Quizz {
         let settings: Settings = Default::default();
@@ -77,14 +77,6 @@ impl Quizz {
             Phase::Results(_) => true,
             _ => false,
         }
-    }
-
-    pub fn get_teams(&self) -> &Vec<Team> {
-        &self.teams
-    }
-
-    fn get_team_mut(&mut self, id: &TeamId) -> Option<&mut Team> {
-        self.teams.iter_mut().find(|t| t.id == *id)
     }
 
     fn set_current_phase(&mut self, phase: Phase) {
@@ -114,7 +106,11 @@ impl Quizz {
                 let guess_result =
                     question_state.guess(team_id, guess, &mut self.output_pipe.write())?;
 
-                let team = self.get_team_mut(team_id).context("Team not found")?;
+                let mut teams = self.teams.write();
+                let team = teams
+                    .iter_mut()
+                    .find(|t| t.id == *team_id)
+                    .context("Team not found")?;
                 let team_display_name = team.get_display_name().to_owned();
 
                 team.update_score(guess_result.score_delta);
