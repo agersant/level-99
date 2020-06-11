@@ -204,9 +204,10 @@ fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
 
         let team_name = args.rest();
         // TODO Trim, and only keep letters and numbers. Replace everything else with hyphens.
-        if !team_name.is_empty() {
-            game.join_team(msg.author.id, team_name)?;
+        if team_name.is_empty() {
+            return Err(anyhow!("Team name cannot be blank"));
         }
+        game.join_team(msg.author.id, team_name)?;
 
         let guild_id = msg
             .guild(&ctx.cache)
