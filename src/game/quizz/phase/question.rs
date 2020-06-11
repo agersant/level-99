@@ -163,7 +163,7 @@ impl State for QuestionState {
         output_pipe.say(
             &Recipient::AllTeams,
             &format!(
-                "🎧 Here's a song from the **{}** category for {} points!",
+                "🎧 Here is a song from the **{}** category for {} points!",
                 self.question.category, self.question.score_value
             ),
         );

@@ -24,7 +24,7 @@ impl State for StartupState {
     }
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.say(&Recipient::AllTeams,"The quizz is about to begin!\n\n**📋 Rules**\n- For each song, you can submit your team's guess with the `!guess something` command.\n- Use your team channel to discuss and submit guesses away from prying eyes.\n- Your team gets less points if another team guessed first, and guessing wrong will deduct points!");
+        output_pipe.say(&Recipient::AllTeams,"The quizz is about to begin!\n\n**📋 Rules**\n- For each song, your team can submit **one** guess using the `!guess something` command.\n- Guessing wrong will deduct the same amount of points you could have earned!\n- If you are not the first team to guess, point earned or deducted are halved.\n\n**🔥 Tips**\n- Answers are game names, not song titles or composers.\n- You can adjust the music volume by right clicking on the bot in the voice channel UI.\n- Sometimes it is wiser to not answer than to lose points!");
     }
 
     fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}

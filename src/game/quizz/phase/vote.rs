@@ -136,7 +136,7 @@ impl State for VoteState {
                     output_pipe.say(
                         &Recipient::AllTeamsExcept(team_id.clone()),
                         &format!(
-                            "**{}** is choosing a category for the next question.",
+                            "⏳ **{}** is choosing a category for the next question.",
                             team_name
                         ),
                     );
@@ -146,7 +146,8 @@ impl State for VoteState {
         };
 
         let mut poll_message: String =
-            "Vote for the next question by reacting to this message! 🗳️\n".to_owned();
+            "**🗳️ Choose a category**\nReact to this message to cast your vote for the next question's category!"
+                .to_owned();
         let mut reactions = Vec::new();
         for (index, question) in self.vote_options.iter().enumerate() {
             poll_message.push_str(&format!(
