@@ -97,11 +97,36 @@ impl QuestionState {
 
         output_pipe.push(Payload::Text(recap));
     }
+
+    fn print_time_remaining(
+        &self,
+        output_pipe: &mut OutputPipe,
+        before: &Option<Duration>,
+        after: &Option<Duration>,
+    ) {
+        match (before, after) {
+            (Some(before), Some(after)) => {
+                let seconds_10 = Duration::from_secs(10);
+                let seconds_30 = Duration::from_secs(30);
+                let threshold_10 = *before > seconds_10 && *after <= seconds_10;
+                let threshold_30 = *before > seconds_30 && *after <= seconds_30;
+                if threshold_10 {
+                    output_pipe.push(Payload::Text("🕒 Only 10 seconds left!".to_owned()));
+                } else if threshold_30 {
+                    output_pipe.push(Payload::Text("🕒 Only 30 seconds left!".to_owned()));
+                }
+            }
+            _ => (),
+        };
+    }
 }
 
 impl State for QuestionState {
-    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {
+    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) {
+        let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
+        let time_remaining_after = self.time_limit.checked_sub(self.time_elapsed);
+        self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
     }
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
