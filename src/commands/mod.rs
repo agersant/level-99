@@ -53,7 +53,10 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
 
-        let path_string = args.parse::<String>().context("Filename cannot be blank")?;
+        let path_string = args.rest();
+        if path_string.is_empty() {
+            return Err(anyhow!("Filename cannot be blank"));
+        }
         let path = Path::new(&path_string);
         game.begin(path)
             .with_context(|| format!("Could not begin quizz with path {:?}", path))?;
