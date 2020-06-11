@@ -85,8 +85,9 @@ fn main() -> Result<()> {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
-            .group(&commands::GENERAL_GROUP)
-            .group(&commands::reset::RESET_GROUP),
+            .group(&commands::quizzmaster::MAIN_GROUP)
+            .group(&commands::quizzmaster::RESET_GROUP)
+            .group(&commands::player::MAIN_GROUP),
     );
 
     // Run discord client

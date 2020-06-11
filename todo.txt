@@ -17,16 +17,16 @@ MVP:
 [x] Command to adjust scores
 [x] Command to reset scores
 [x] Command to reset teams
-[] Beta test!
+[] Alpha test!
 
 Nice to have:
 [x] Warning for 30 and 10 seconds left
 [x] Remind of team commands at the start of setup phase
 [x] Remind of guess commands at the start of quizz phase
-[] Command permissions
-[] Command groups for quizz VS setup
-[] Pause/unpause
-[] End quizz command
+[x] Command permissions
+[x] Command groups for quizz VS setup
+[] Commands to pause/unpause
+[] Command to end quizz
 [] Skip question command
 [] Bot personality (image, name, texts)
 [] Announce winning team
@@ -42,4 +42,5 @@ Extra work:
 [] Solo play
 [] Double Jeopardy
 [] Final Jeopardy
+[] Create a quizzmaster role instead of relying on admin privilege
 [] Disk persistence

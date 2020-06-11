@@ -2,7 +2,7 @@ use anyhow::*;
 use serenity::{
     client::Context as SerenityContext,
     framework::standard::macros::{command, group},
-    framework::standard::{CommandError, CommandResult},
+    framework::standard::{Args, CommandError, CommandResult},
     model::channel::Message,
 };
 
@@ -11,22 +11,23 @@ use crate::commands::*;
 use crate::game::pool::Pool as GamePool;
 
 #[group]
-#[prefix = "reset"]
-#[commands(scores, teams)]
-struct Reset;
+#[commands(guess, team)]
+struct Main;
 
 #[command]
-fn scores(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
-        let manager = ctx
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
-        game.reset_scores();
+
+        let guess = args.rest();
+        game.guess(msg.author.id, &guess)?;
         Ok(())
     }();
 
@@ -39,23 +40,30 @@ fn scores(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 }
 
 #[command]
-fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
-        let manager = ctx
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
         let mut game = game_lock.lock();
-        game.reset_teams();
+
+        let team_name = args.rest();
+        // TODO Trim, and only keep letters and numbers. Replace everything else with hyphens.
+        if team_name.is_empty() {
+            return Err(anyhow!("Team name cannot be blank"));
+        }
+        game.join_team(msg.author.id, team_name)?;
 
         let guild_id = msg
             .guild(&ctx.cache)
             .context(ERROR_MISSING_GUILD)?
             .read()
             .id;
+
         update_team_channels(ctx, guild_id, &game.get_teams())?;
 
         Ok(())
