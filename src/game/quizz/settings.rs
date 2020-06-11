@@ -14,7 +14,7 @@ impl Default for Settings {
         Settings {
             startup_duration: Duration::from_secs(30),
             vote_duration: Duration::from_secs(15),
-            question_duration: Duration::from_secs(90),
+            question_duration: Duration::from_secs(80),
             cooldown_duration: Duration::from_secs(5),
             max_vote_options: 6,
         }
