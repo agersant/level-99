@@ -128,6 +128,10 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
             msg.channel_id
                 .say(&ctx.http, &format!("Joined {}", connect_to.mention())),
         );
+        check_msg(msg.channel_id.say(
+            &ctx.http,
+            "Use the `!team team-name` command to create or join a team",
+        ));
     } else {
         check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
     }

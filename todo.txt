@@ -21,8 +21,8 @@ MVP:
 
 Nice to have:
 [x] Warning for 30 and 10 seconds left
-[] Remind of team commands at the start of setup phase
-[] Remind of guess commands at the start of quizz phase
+[x] Remind of team commands at the start of setup phase
+[x] Remind of guess commands at the start of quizz phase
 [] Command permissions
 [] Command groups for quizz VS setup
 [] Pause/unpause

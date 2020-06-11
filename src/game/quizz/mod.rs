@@ -58,17 +58,16 @@ impl Quizz {
         output_pipe: Arc<RwLock<OutputPipe>>,
     ) -> Quizz {
         let settings: Settings = Default::default();
+        let startup_state = StartupState::new(settings.startup_duration);
         let mut quizz = Quizz {
             remaining_questions: definition.get_questions().clone(),
-            current_phase: Phase::Startup(StartupState::new()),
+            current_phase: Phase::Startup(startup_state.clone()),
             initiative: None,
             output_pipe,
             settings,
             teams,
         };
-        quizz.set_current_phase(Phase::Cooldown(CooldownState::new(
-            quizz.settings.cooldown_duration,
-        )));
+        quizz.set_current_phase(Phase::Startup(startup_state));
         quizz
     }
 
