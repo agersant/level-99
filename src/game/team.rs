@@ -1,7 +1,29 @@
+use anyhow::*;
 use parking_lot::RwLock;
+use regex::Regex;
 use serenity::model::id::UserId;
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::sync::Arc;
+use unidecode::unidecode;
+
+pub fn sanitize_name(name: &str) -> Result<String> {
+    let name = unidecode(name);
+
+    let forbidden_characters = Regex::new("[^\\sa-z0-9-]").unwrap(); // TODO avoid recompiling this regex everytime
+    let name: String = forbidden_characters
+        .replace_all(&name.to_lowercase(), "")
+        .into();
+
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(anyhow!("Invalid team name"));
+    }
+
+    let whitespace = Regex::new("\\s+").unwrap(); // TODO avoid recompiling this regex everytime
+    let name: String = whitespace.replace_all(&name, "-").into();
+    Ok(name)
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum TeamId {

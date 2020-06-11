@@ -19,26 +19,34 @@ MVP:
 [x] Command to reset teams
 [] Alpha test!
 
-Nice to have:
+Alpha:
 [x] Warning for 30 and 10 seconds left
 [x] Remind of team commands at the start of setup phase
 [x] Remind of guess commands at the start of quizz phase
 [x] Command permissions
 [x] Command groups for quizz VS setup
 [x] Commands to pause/unpause
-[] Command to end quizz
 [x] Command to skip question
+
+Beta:
+[] Fix bug where second guess loses full question value if first guess was also wrong
+[x] Sanitize team names
+[] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
+[] Reveal answer after all teams have submitted a guest
+[] Remove vote for final question
 [] Bot personality (image, name, texts)
+[] Add sound effects for: question about to start,correct answer, wrong answer, time's up, channel join
+[] Mention that players should guess game name, not song name
+[] Mention that bot audio level can be adjusted
 [] Announce winning team
-[] Review TODO comments
-[] Unit tests
+[] Command to end quizz
+[] Shorten question duration by a few seconds
 
 Extra work:
+[] Review TODO comments
+[] Unit tests
 [] Daily double
-[] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
 [] Create game on ready and on join server instead of within get_game()
-[] Add sound effects for: correct answer, wrong answer, time's up, question start
-[] No vote for final question
 [] Solo play
 [] Double Jeopardy
 [] Final Jeopardy

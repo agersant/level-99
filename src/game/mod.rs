@@ -11,7 +11,7 @@ pub mod team;
 
 use self::quizz::definition::QuizzDefinition;
 use self::quizz::Quizz;
-use self::team::{Team, TeamId, TeamsHandle};
+use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Payload};
 
 #[derive(Debug)]
@@ -114,7 +114,8 @@ impl Game {
         }
 
         // Put player on his desired team
-        let team_id = TeamId::TeamName(team_name.into());
+        let team_name = sanitize_name(team_name)?;
+        let team_id = TeamId::TeamName(team_name);
         let mut team = teams.iter_mut().find(|team| team.id == team_id);
         if team.is_none() {
             let new_team = Team::new(team_id);
