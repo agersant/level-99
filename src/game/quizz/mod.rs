@@ -123,16 +123,7 @@ impl Quizz {
                 self.begin_vote();
             }
             Phase::Vote(_s) => {
-                if let Some(question) = self.select_question() {
-                    let state = QuestionState::new(
-                        question,
-                        self.settings.question_duration,
-                        self.teams.clone(),
-                    );
-                    self.set_current_phase(Phase::Question(state));
-                } else {
-                    self.set_current_phase(Phase::Results(ResultsState::new()));
-                }
+                self.begin_question();
             }
             Phase::Question(_s) => {
                 if self.remaining_questions.is_empty() {
@@ -143,9 +134,26 @@ impl Quizz {
                 }
             }
             Phase::Cooldown(_s) => {
-                self.begin_vote();
+                if self.remaining_questions.len() > 1 {
+                    self.begin_vote();
+                } else {
+                    self.begin_question();
+                }
             }
             Phase::Results(_s) => (),
+        }
+    }
+
+    fn begin_question(&mut self) {
+        if let Some(question) = self.select_question() {
+            let state = QuestionState::new(
+                question,
+                self.settings.question_duration,
+                self.teams.clone(),
+            );
+            self.set_current_phase(Phase::Question(state));
+        } else {
+            self.set_current_phase(Phase::Results(ResultsState::new()));
         }
     }
 

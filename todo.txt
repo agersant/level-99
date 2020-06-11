@@ -33,7 +33,7 @@ Beta:
 [x] Sanitize team names
 [] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
 [] Reveal answer after all teams have submitted a guest
-[] Remove vote for final question
+[x] Remove vote for final question
 [] Bot personality (image, name, texts)
 [] Add sound effects for: question about to start,correct answer, wrong answer, time's up, channel join
 [] Mention that players should guess game name, not song name
