@@ -8,7 +8,7 @@ use self::definition::*;
 use self::phase::*;
 use self::settings::*;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Payload};
+use crate::output::OutputPipe;
 
 pub mod definition;
 mod phase;
@@ -104,41 +104,13 @@ impl Quizz {
             Phase::Question(question_state) => {
                 let guess_result =
                     question_state.guess(team_id, guess, &mut self.output_pipe.write())?;
-
-                let mut teams = self.teams.write();
-                let team = teams
-                    .iter_mut()
-                    .find(|t| t.id == *team_id)
-                    .context("Team not found")?;
-                let team_display_name = team.get_display_name().to_owned();
-
-                team.update_score(guess_result.score_delta);
-                if guess_result.is_correct {
-                    self.broadcast(Payload::Text(format!(
-                        "✅ Team {} guessed correctly and earned {} points!",
-                        team_display_name, guess_result.score_delta
-                    )));
-                } else {
-                    self.broadcast(Payload::Text(format!(
-                        "❌ Team {} guessed incorrectly and lost {} points. Womp womp 📯.",
-                        team_display_name,
-                        guess_result.score_delta.abs()
-                    )));
-                }
-
                 if guess_result.is_first_correct {
                     self.initiative = Some(team_id.clone());
                 }
-
                 Ok(())
             }
             _ => Err(anyhow!("There is no active question")),
         }
-    }
-
-    fn broadcast(&self, payload: Payload) {
-        let mut output_pipe = self.output_pipe.write();
-        output_pipe.push(payload);
     }
 
     pub fn skip_phase(&mut self) {

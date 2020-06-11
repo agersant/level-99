@@ -40,7 +40,7 @@ impl QuestionState {
         &mut self,
         team_id: &TeamId,
         guess: &str,
-        _output_pipe: &mut OutputPipe,
+        output_pipe: &mut OutputPipe,
     ) -> Result<GuessResult> {
         if self.guesses.contains_key(team_id) {
             return Err(anyhow!("Team already made a guess"));
@@ -56,6 +56,29 @@ impl QuestionState {
             is_first_correct,
         };
         self.guesses.insert(team_id.clone(), guess_result.clone());
+
+        let mut teams = self.teams.write();
+        let team = teams
+            .iter_mut()
+            .find(|t| t.id == *team_id)
+            .context("Team not found")?;
+        let team_display_name = team.get_display_name().to_owned();
+
+        team.update_score(guess_result.score_delta);
+
+        if guess_result.is_correct {
+            output_pipe.push(Payload::Text(format!(
+                "✅ Team {} guessed correctly and earned {} points!",
+                team_display_name, guess_result.score_delta
+            )));
+        } else {
+            output_pipe.push(Payload::Text(format!(
+                "❌ Team {} guessed incorrectly and lost {} points. Womp womp 📯.",
+                team_display_name,
+                guess_result.score_delta.abs()
+            )));
+        }
+
         Ok(guess_result)
     }
 
@@ -66,9 +89,9 @@ impl QuestionState {
     fn compute_score_delta(&self, correct: bool) -> i32 {
         let score_value = self.question.score_value as i32;
         let correctness_multiplier = if correct { 1 } else { -1 };
-        let already_guessed = self.was_correctly_guessed();
+        let is_first_guess = self.guesses.is_empty();
         let delta = score_value * correctness_multiplier;
-        if !already_guessed {
+        if is_first_guess {
             delta
         } else {
             delta / 2
