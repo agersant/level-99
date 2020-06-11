@@ -1,0 +1,16 @@
+- lost 200 points instead of 100 when guessing wrong as second
+- switching channels is awkward. Post in team chats
+- reveal song after all votes are cast and keep playing it
+- vote only in relevent team's channel
+- mention that level 99 volume can be adjusted
+- mention that game name, not title
+- queue up guesses and announce results later?
+- support solo
+- bonus points for songs guess
+- countdown before it starts
+- pacing feels too fast
+- did not notice voting rights
+- skip vote for last question
+- spectator channel
+- songs play 5 seconds too long
+- skip intro sometimes
