@@ -30,7 +30,7 @@ fn quizzmaster_check(ctx: &mut SerenityContext, msg: &Message) -> CheckResult {
 
 #[group]
 #[checks(Quizzmaster)]
-#[commands(begin, join, score, skip)]
+#[commands(begin, join, pause, score, skip, unpause)]
 struct Main;
 
 #[group]
@@ -125,6 +125,29 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
         check_msg(msg.channel_id.say(&ctx.http, "Error joining the channel"));
     }
 
+    Ok(())
+}
+
+#[command]
+fn pause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let result = || -> Result<()> {
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+        game.pause();
+        Ok(())
+    }();
+
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
+    }
     Ok(())
 }
 
@@ -226,6 +249,29 @@ fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
             .id;
         update_team_channels(ctx, guild_id, &game.get_teams())?;
 
+        Ok(())
+    }();
+
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
+    }
+    Ok(())
+}
+
+#[command]
+fn unpause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let result = || -> Result<()> {
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let mut game = game_lock.lock();
+        game.unpause();
         Ok(())
     }();
 

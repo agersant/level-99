@@ -25,6 +25,7 @@ pub struct Game {
     current_phase: Phase,
     teams: TeamsHandle,
     output_pipe: Arc<RwLock<OutputPipe>>,
+    paused: bool,
 }
 
 impl Game {
@@ -33,6 +34,7 @@ impl Game {
             current_phase: Phase::Startup,
             teams: Arc::new(RwLock::new(Vec::new())),
             output_pipe: Arc::new(RwLock::new(output_pipe)),
+            paused: false,
         };
         game.set_current_phase(Phase::Setup);
         game
@@ -44,6 +46,9 @@ impl Game {
     }
 
     pub fn tick(&mut self, dt: Duration) {
+        if self.paused {
+            return;
+        }
         match &mut self.current_phase {
             Phase::Startup | Phase::Setup => (),
             Phase::Quizz(quizz) => {
@@ -156,6 +161,24 @@ impl Game {
         }
         let mut output_pipe = self.output_pipe.write();
         output_pipe.push(Payload::Text(format!("Scores were reset")));
+    }
+
+    pub fn pause(&mut self) {
+        if !self.paused {
+            self.paused = true;
+            let mut output_pipe = self.output_pipe.write();
+            output_pipe.push(Payload::Text(format!(
+                "The game is now paused, use `!unpause` to resume."
+            )));
+        }
+    }
+
+    pub fn unpause(&mut self) {
+        if self.paused {
+            self.paused = false;
+            let mut output_pipe = self.output_pipe.write();
+            output_pipe.push(Payload::Text(format!("The game has resumed.")));
+        }
     }
 
     fn get_player_team(&self, player: UserId) -> Option<TeamId> {

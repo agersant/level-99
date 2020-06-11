@@ -25,7 +25,7 @@ Nice to have:
 [x] Remind of guess commands at the start of quizz phase
 [x] Command permissions
 [x] Command groups for quizz VS setup
-[] Commands to pause/unpause
+[x] Commands to pause/unpause
 [] Command to end quizz
 [] Skip question command
 [] Bot personality (image, name, texts)
