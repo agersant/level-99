@@ -8,7 +8,7 @@ use serenity::voice;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::game::team::{TeamId, TeamsHandle};
+use crate::game::team::TeamId;
 
 pub enum Recipient {
     AllTeams,
@@ -103,29 +103,27 @@ impl DiscordOutput {
 pub struct OutputPipe {
     guild_id: GuildId,
     discord_output: Arc<Mutex<DiscordOutput>>,
-    teams: TeamsHandle,
+    team_channels: HashMap<TeamId, ChannelId>,
 }
 
 impl OutputPipe {
-    pub fn new(
-        guild_id: GuildId,
-        discord_output: &Arc<Mutex<DiscordOutput>>,
-        teams: TeamsHandle,
-    ) -> OutputPipe {
+    pub fn new(guild_id: GuildId, discord_output: &Arc<Mutex<DiscordOutput>>) -> OutputPipe {
         OutputPipe {
             guild_id,
             discord_output: Arc::clone(discord_output),
-            teams,
+            team_channels: HashMap::new(),
         }
     }
 
+    pub fn update_team_channels(&mut self, channel_ids: HashMap<TeamId, ChannelId>) {
+        self.team_channels = channel_ids;
+    }
+
     fn get_team_channel(&self, team_id: &TeamId) -> Result<ChannelId> {
-        let teams = self.teams.read();
-        teams
-            .iter()
-            .find(|t| t.id == *team_id)
-            .ok_or(anyhow!("Team not found"))
-            .and_then(|t| t.channel_id.ok_or(anyhow!("Team has no channel")))
+        match self.team_channels.get(team_id) {
+            Some(channel_id) => Ok(channel_id.clone()),
+            None => Err(anyhow!("Team has no channel")),
+        }
     }
 
     pub fn say(
@@ -150,15 +148,15 @@ impl OutputPipe {
                 };
             }
             Recipient::AllTeams => {
-                let teams = self.teams.read();
-                for team in teams.iter() {
-                    message_ids.extend(self.say(&Recipient::Team(team.id.clone()), content));
+                for (team_id, _channel_id) in self.team_channels.iter() {
+                    message_ids.extend(self.say(&Recipient::Team(team_id.clone()), content));
                 }
             }
             Recipient::AllTeamsExcept(team_id) => {
-                let teams = self.teams.read();
-                for team in teams.iter().filter(|t| t.id != *team_id) {
-                    message_ids.extend(self.say(&Recipient::Team(team.id.clone()), content));
+                for (team_id, _channel_id) in
+                    self.team_channels.iter().filter(|(t, _c)| t != &team_id)
+                {
+                    message_ids.extend(self.say(&Recipient::Team(team_id.clone()), content));
                 }
             }
         }
@@ -189,20 +187,20 @@ impl OutputPipe {
                 };
             }
             Recipient::AllTeams => {
-                let teams = self.teams.read();
-                for team in teams.iter() {
+                for (team_id, _channel_id) in self.team_channels.iter() {
                     message_ids.extend(self.say_with_reactions(
-                        &Recipient::Team(team.id.clone()),
+                        &Recipient::Team(team_id.clone()),
                         content,
                         reactions,
                     ));
                 }
             }
             Recipient::AllTeamsExcept(team_id) => {
-                let teams = self.teams.read();
-                for team in teams.iter().filter(|t| t.id != *team_id) {
+                for (team_id, _channel_id) in
+                    self.team_channels.iter().filter(|(t, _c)| t != &team_id)
+                {
                     message_ids.extend(self.say_with_reactions(
-                        &Recipient::Team(team.id.clone()),
+                        &Recipient::Team(team_id.clone()),
                         content,
                         reactions,
                     ));

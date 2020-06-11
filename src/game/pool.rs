@@ -30,9 +30,8 @@ impl Pool {
                 .expect("Expected DiscordOutput in ShareMap.");
 
             let teams = Arc::new(RwLock::new(Vec::new()));
-            let dispatcher = OutputPipe::new(guild_id, &discord_output, teams.clone());
+            let dispatcher = OutputPipe::new(guild_id, &discord_output);
             let game = Game::new(dispatcher, teams);
-
             let mut map = self.games.write();
             map.insert(guild_id, Arc::new(Mutex::new(game)));
         }

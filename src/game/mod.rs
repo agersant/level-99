@@ -1,6 +1,7 @@
 use anyhow::*;
 use parking_lot::RwLock;
-use serenity::model::id::UserId;
+use serenity::model::id::{ChannelId, UserId};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -187,6 +188,11 @@ impl Game {
         }
     }
 
+    pub fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>) {
+        let mut output_pipe = self.output_pipe.write();
+        output_pipe.update_team_channels(channel_ids);
+    }
+
     fn get_player_team(&self, player: UserId) -> Option<TeamId> {
         let teams = self.teams.read();
         teams
@@ -195,7 +201,7 @@ impl Game {
             .and_then(|t| Some(t.id.clone()))
     }
 
-    pub fn get_teams(&self) -> TeamsHandle {
-        self.teams.clone()
+    pub fn get_teams(&self) -> Vec<Team> {
+        self.teams.read().clone()
     }
 }

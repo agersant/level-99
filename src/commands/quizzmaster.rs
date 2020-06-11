@@ -282,7 +282,9 @@ fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
             .context(ERROR_MISSING_GUILD)?
             .read()
             .id;
-        update_team_channels(ctx, guild_id, game.get_teams())?;
+
+        let channel_ids = update_team_channels(ctx, guild_id, &game.get_teams())?;
+        game.update_team_channels(channel_ids);
 
         Ok(())
     }();

@@ -48,8 +48,9 @@ impl EventHandler for Handler {
                 .expect("Expected GamePool in ShareMap.");
             let game_lock = game_pool.get_game(&ctx, guild_id);
             let game = game_lock.lock();
-            if let Err(e) = channels::update_team_channels(&ctx, guild_id, game.get_teams()) {
-                eprintln!("Could not initialize team channels: {:#}", e);
+            match channels::update_team_channels(&ctx, guild_id, &game.get_teams()) {
+                Err(e) => eprintln!("Could not initialize team channels: {:#}", e),
+                Ok(channel_ids) => game.update_team_channels(channel_ids),
             }
         }
     }
