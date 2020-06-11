@@ -17,13 +17,20 @@ struct Main;
 #[command]
 fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
         let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
 
         let guess = args.rest();
@@ -42,13 +49,20 @@ fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
 #[command]
 fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
     let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
         let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
 
         let team_name = args.rest();
@@ -60,7 +74,7 @@ fn team(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult {
             .read()
             .id;
 
-        update_team_channels(ctx, guild_id, &game.get_teams())?;
+        update_team_channels(ctx, guild_id, game.get_teams())?;
 
         Ok(())
     }();

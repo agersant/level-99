@@ -31,7 +31,7 @@ Alpha:
 Beta:
 [x] Fix bug where second guess loses full question value if first guess was also wrong
 [x] Sanitize team names
-[] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
+[x] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
 [] Reveal answer after all teams have submitted a guest
 [x] Remove vote for final question
 [] Bot personality (image, name, texts)

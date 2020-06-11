@@ -12,7 +12,7 @@ pub mod team;
 use self::quizz::definition::QuizzDefinition;
 use self::quizz::Quizz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Payload};
+use crate::output::{OutputPipe, Recipient};
 
 #[derive(Debug)]
 enum Phase {
@@ -29,12 +29,12 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(output_pipe: OutputPipe) -> Game {
+    pub fn new(output_pipe: OutputPipe, teams: TeamsHandle) -> Game {
         let mut game = Game {
             current_phase: Phase::Startup,
-            teams: Arc::new(RwLock::new(Vec::new())),
             output_pipe: Arc::new(RwLock::new(output_pipe)),
             paused: false,
+            teams,
         };
         game.set_current_phase(Phase::Setup);
         game
@@ -139,58 +139,63 @@ impl Game {
             .find(|t| t.id == team_id)
             .context("Team not found")?;
         team.update_score(delta);
-        let mut output_pipe = self.output_pipe.write();
-        output_pipe.push(Payload::Text(format!(
-            "Team {}'s score was updated to {} points",
-            team.get_display_name(),
-            team.score
-        )));
+        let output_pipe = self.output_pipe.read();
+        output_pipe.say(
+            &Recipient::AllTeams,
+            &format!(
+                "Team {}'s score was updated to {} points",
+                team.get_display_name(),
+                team.score
+            ),
+        );
         Ok(())
     }
 
     pub fn reset_teams(&mut self) {
-        let mut teams = self.teams.write();
-        teams.clear();
-        let mut output_pipe = self.output_pipe.write();
-        output_pipe.push(Payload::Text(format!("Teams were reset")));
+        self.teams.write().clear();
+        let output_pipe = self.output_pipe.read();
+        output_pipe.say(&Recipient::AllTeams, "Teams were reset");
     }
 
     pub fn reset_scores(&mut self) {
-        let mut teams = self.teams.write();
-        for team in teams.iter_mut() {
-            team.score = 0;
+        {
+            let mut teams = self.teams.write();
+            for team in teams.iter_mut() {
+                team.score = 0;
+            }
         }
-        let mut output_pipe = self.output_pipe.write();
-        output_pipe.push(Payload::Text(format!("Scores were reset")));
+        let output_pipe = self.output_pipe.read();
+        output_pipe.say(&Recipient::AllTeams, "Scores were reset");
     }
 
     pub fn pause(&mut self) {
         if !self.paused {
             self.paused = true;
-            let mut output_pipe = self.output_pipe.write();
-            output_pipe.push(Payload::Text(format!(
-                "The game is now paused, use `!unpause` to resume."
-            )));
+            let output_pipe = self.output_pipe.read();
+            output_pipe.say(
+                &Recipient::AllTeams,
+                "The game is now paused, use `!unpause` to resume.",
+            );
         }
     }
 
     pub fn unpause(&mut self) {
         if self.paused {
             self.paused = false;
-            let mut output_pipe = self.output_pipe.write();
-            output_pipe.push(Payload::Text(format!("The game has resumed.")));
+            let output_pipe = self.output_pipe.read();
+            output_pipe.say(&Recipient::AllTeams, "The game has resumed.");
         }
     }
 
     fn get_player_team(&self, player: UserId) -> Option<TeamId> {
-        let teams = self.get_teams();
+        let teams = self.teams.read();
         teams
             .iter()
             .find(|t| t.players.contains(&player))
             .and_then(|t| Some(t.id.clone()))
     }
 
-    pub fn get_teams(&self) -> Vec<Team> {
-        self.teams.read().clone()
+    pub fn get_teams(&self) -> TeamsHandle {
+        self.teams.clone()
     }
 }

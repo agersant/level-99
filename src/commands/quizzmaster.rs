@@ -64,7 +64,7 @@ fn begin(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
 
         let path_string = args.rest();
@@ -130,6 +130,13 @@ fn join(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 
 #[command]
 fn pause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let guild_id = ctx
+        .cache
+        .read()
+        .guild_channel(msg.channel_id)
+        .context("Server not found")?
+        .read()
+        .guild_id;
     let result = || -> Result<()> {
         let game_pool = ctx
             .data
@@ -137,7 +144,7 @@ fn pause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
         game.pause();
         Ok(())
@@ -154,13 +161,20 @@ fn pause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 #[command]
 fn score(ctx: &mut SerenityContext, msg: &Message, mut args: Args) -> CommandResult {
     let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
         let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
 
         let team_name = args
@@ -186,13 +200,20 @@ fn score(ctx: &mut SerenityContext, msg: &Message, mut args: Args) -> CommandRes
 #[command]
 fn skip(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
         let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
         game.skip()?;
         Ok(())
@@ -208,14 +229,21 @@ fn skip(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 
 #[command]
 fn scores(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let guild_id = ctx
+        .cache
+        .read()
+        .guild_channel(msg.channel_id)
+        .context("Server not found")?
+        .read()
+        .guild_id;
     let result = || -> Result<()> {
-        let manager = ctx
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
         game.reset_scores();
         Ok(())
@@ -232,13 +260,20 @@ fn scores(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 #[command]
 fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     let result = || -> Result<()> {
-        let manager = ctx
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
+        let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
-            .expect("Expected VoiceManager in ShareMap.");
-        let game_lock = manager.get_game(ctx, msg.channel_id)?;
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
         game.reset_teams();
 
@@ -247,7 +282,7 @@ fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
             .context(ERROR_MISSING_GUILD)?
             .read()
             .id;
-        update_team_channels(ctx, guild_id, &game.get_teams())?;
+        update_team_channels(ctx, guild_id, game.get_teams())?;
 
         Ok(())
     }();
@@ -263,13 +298,20 @@ fn teams(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
 #[command]
 fn unpause(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
     let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
         let game_pool = ctx
             .data
             .read()
             .get::<GamePool>()
             .cloned()
             .expect("Expected GamePool in ShareMap.");
-        let game_lock = game_pool.get_game(ctx, msg.channel_id)?;
+        let game_lock = game_pool.get_game(ctx, guild_id);
         let mut game = game_lock.lock();
         game.unpause();
         Ok(())

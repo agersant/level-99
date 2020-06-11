@@ -6,15 +6,17 @@ use serenity::{
     model::permissions::Permissions,
 };
 
-use crate::game::team::Team;
+use crate::game::team::TeamsHandle;
 
 const TEAM_CHANNELS_CATEGORY: &'static str = "Team Channels";
 
 pub fn update_team_channels(
     ctx: &SerenityContext,
     guild_id: GuildId,
-    teams: &Vec<Team>,
+    teams: TeamsHandle,
 ) -> Result<()> {
+    let mut teams = teams.write();
+
     // According to the docs on Guild.id: `This is equivalent to the Id of the default role (`@everyone`)`
     let everyone_role_id = RoleId::from(*guild_id.as_u64());
 
@@ -53,27 +55,28 @@ pub fn update_team_channels(
     }
 
     // Create missing team channels
-    for team in teams {
-        if channels
-            .iter()
-            .find(|(_id, channel)| {
-                channel.name() == team.get_display_name()
-                    && channel.category_id == Some(team_channel_category)
-            })
-            .is_none()
-        {
-            println!("Creating team channel: {}", team.get_display_name());
-            guild_id
-                .create_channel(&ctx.http, |c| {
-                    c.name(team.get_display_name())
-                        .category(team_channel_category)
-                        .permissions(vec![PermissionOverwrite {
-                            deny: Permissions::READ_MESSAGES,
-                            allow: Permissions::empty(),
-                            kind: PermissionOverwriteType::Role(everyone_role_id),
-                        }])
-                })?
-                .id;
+    for team in teams.iter_mut() {
+        team.channel_id = match channels.iter().find(|(_id, channel)| {
+            channel.name() == team.get_display_name()
+                && channel.category_id == Some(team_channel_category)
+        }) {
+            None => {
+                println!("Creating team channel: {}", team.get_display_name());
+                Some(
+                    guild_id
+                        .create_channel(&ctx.http, |c| {
+                            c.name(team.get_display_name())
+                                .category(team_channel_category)
+                                .permissions(vec![PermissionOverwrite {
+                                    deny: Permissions::READ_MESSAGES,
+                                    allow: Permissions::empty(),
+                                    kind: PermissionOverwriteType::Role(everyone_role_id),
+                                }])
+                        })?
+                        .id,
+                )
+            }
+            Some((channel_id, _channel)) => Some(*channel_id),
         }
     }
 

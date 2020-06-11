@@ -1,7 +1,7 @@
 use anyhow::*;
 use parking_lot::RwLock;
 use regex::Regex;
-use serenity::model::id::UserId;
+use serenity::model::id::{ChannelId, UserId};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -34,6 +34,7 @@ pub enum TeamId {
 pub struct Team {
     pub id: TeamId,
     pub players: HashSet<UserId>,
+    pub channel_id: Option<ChannelId>,
     pub score: i32,
 }
 
@@ -43,6 +44,7 @@ impl Team {
             id,
             score: 0,
             players: HashSet::new(),
+            channel_id: None,
         }
     }
 

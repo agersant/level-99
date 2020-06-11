@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Payload};
+use crate::output::{OutputPipe, Recipient};
 
 #[derive(Clone, Debug)]
 pub struct GuessResult {
@@ -57,26 +57,33 @@ impl QuestionState {
         };
         self.guesses.insert(team_id.clone(), guess_result.clone());
 
-        let mut teams = self.teams.write();
-        let team = teams
-            .iter_mut()
-            .find(|t| t.id == *team_id)
-            .context("Team not found")?;
-        let team_display_name = team.get_display_name().to_owned();
-
-        team.update_score(guess_result.score_delta);
+        let team_display_name = {
+            let mut teams = self.teams.write();
+            let team = teams
+                .iter_mut()
+                .find(|t| t.id == *team_id)
+                .context("Team not found")?;
+            team.update_score(guess_result.score_delta);
+            team.get_display_name().to_owned()
+        };
 
         if guess_result.is_correct {
-            output_pipe.push(Payload::Text(format!(
-                "✅ Team {} guessed correctly and earned {} points!",
-                team_display_name, guess_result.score_delta
-            )));
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!(
+                    "✅ **Team {}** guessed correctly and earned {} points!",
+                    team_display_name, guess_result.score_delta
+                ),
+            );
         } else {
-            output_pipe.push(Payload::Text(format!(
-                "❌ Team {} guessed incorrectly and lost {} points. Womp womp 📯.",
-                team_display_name,
-                guess_result.score_delta.abs()
-            )));
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!(
+                    "❌ **Team {}** guessed incorrectly and lost {} points. Womp womp 📯.",
+                    team_display_name,
+                    guess_result.score_delta.abs()
+                ),
+            );
         }
 
         Ok(guess_result)
@@ -118,7 +125,7 @@ impl QuestionState {
             ));
         }
 
-        output_pipe.push(Payload::Text(recap));
+        output_pipe.say(&Recipient::AllTeams, &recap);
     }
 
     fn print_time_remaining(
@@ -134,9 +141,9 @@ impl QuestionState {
                 let threshold_10 = *before > seconds_10 && *after <= seconds_10;
                 let threshold_30 = *before > seconds_30 && *after <= seconds_30;
                 if threshold_10 {
-                    output_pipe.push(Payload::Text("🕒 Only 10 seconds left!".to_owned()));
+                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
                 } else if threshold_30 {
-                    output_pipe.push(Payload::Text("🕒 Only 30 seconds left!".to_owned()));
+                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
                 }
             }
             _ => (),
@@ -153,19 +160,35 @@ impl State for QuestionState {
     }
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.push(Payload::Text(format!(
-            "🎧 Here's a song from the **{}** category for {} points!",
-            self.question.category, self.question.score_value
-        )));
-        output_pipe.push(Payload::Audio(self.question.url.clone()));
+        output_pipe.say(
+            &Recipient::AllTeams,
+            &format!(
+                "🎧 Here's a song from the **{}** category for {} points!",
+                self.question.category, self.question.score_value
+            ),
+        );
+        if let Err(e) = output_pipe.play_audio(self.question.url.clone()) {
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!("Oops that didn't actually work: {}", e),
+            );
+        }
     }
 
     fn on_end(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.push(Payload::Text(format!(
-            "⏰ Time's up! The answer was **{}**:\n{}",
-            self.question.answer, self.question.url
-        )));
-        output_pipe.push(Payload::StopAudio);
+        output_pipe.say(
+            &Recipient::AllTeams,
+            &format!(
+                "⏰ Time's up! The answer was **{}**:\n{}",
+                self.question.answer, self.question.url
+            ),
+        );
+        if let Err(e) = output_pipe.stop_audio() {
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!("Oh no. There was a problem stopping the music: {}", e),
+            );
+        }
         self.print_scores(output_pipe);
     }
 

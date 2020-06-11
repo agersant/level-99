@@ -1,7 +1,6 @@
-use anyhow::*;
 use parking_lot::RwLock;
 use serenity::client::Context as SerenityContext;
-use serenity::model::id::{ChannelId, GuildId};
+use serenity::model::id::GuildId;
 use serenity::prelude::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,18 +16,10 @@ pub struct Pool {
 }
 
 impl Pool {
-    pub fn get_game(&self, ctx: &SerenityContext, channel: ChannelId) -> Result<Arc<Mutex<Game>>> {
-        let guild = ctx
-            .cache
-            .read()
-            .guild_channel(channel)
-            .context("Server not found")?
-            .read()
-            .guild_id;
-
+    pub fn get_game(&self, ctx: &SerenityContext, guild_id: GuildId) -> Arc<Mutex<Game>> {
         let game_exists = {
             let map = self.games.read();
-            map.contains_key(&guild)
+            map.contains_key(&guild_id)
         };
         if !game_exists {
             let discord_output = ctx
@@ -38,12 +29,15 @@ impl Pool {
                 .cloned()
                 .expect("Expected DiscordOutput in ShareMap.");
 
-            let dispatcher = OutputPipe::new(guild, channel, &discord_output);
+            let teams = Arc::new(RwLock::new(Vec::new()));
+            let dispatcher = OutputPipe::new(guild_id, &discord_output, teams.clone());
+            let game = Game::new(dispatcher, teams);
+
             let mut map = self.games.write();
-            map.insert(guild, Arc::new(Mutex::new(Game::new(dispatcher))));
+            map.insert(guild_id, Arc::new(Mutex::new(game)));
         }
         let map = self.games.read();
-        Ok(Arc::clone(map.get(&guild).expect("Pool missing game")))
+        Arc::clone(map.get(&guild_id).unwrap())
     }
 
     pub fn tick(&self, dt: Duration) {

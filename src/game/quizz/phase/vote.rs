@@ -1,7 +1,7 @@
 use anyhow::*;
 use itertools::Itertools;
 use rand::seq::SliceRandom;
-use serenity::model::id::MessageId;
+use serenity::model::id::{ChannelId, MessageId};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::Deref;
@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, OutputResult, Payload};
+use crate::output::{OutputPipe, Recipient};
 
 const VOTE_REACTIONS: &'static [&'static str] =
     &["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
@@ -22,7 +22,7 @@ pub struct VoteState {
     vote_options: Vec<Question>,
     voting_team: Option<TeamId>,
     teams: TeamsHandle,
-    vote_message_id: Option<MessageId>,
+    vote_message_ids: Option<HashMap<TeamId, Result<(ChannelId, MessageId)>>>,
 }
 
 impl VoteState {
@@ -39,7 +39,7 @@ impl VoteState {
             vote_options: VoteState::select_vote_options(remaining_questions, max_vote_options),
             voting_team,
             teams,
-            vote_message_id: None,
+            vote_message_ids: None,
         };
         state
     }
@@ -73,31 +73,35 @@ impl VoteState {
     }
 
     pub fn compute_vote_result(&self, output_pipe: &mut OutputPipe) -> Result<Question> {
-        let message_id = self.vote_message_id.context("No vote message")?;
+        let message_ids = self.vote_message_ids.as_ref().context("No vote message")?;
         let mut vote_counts = HashMap::new();
 
-        for (index, question) in self.vote_options.iter().enumerate() {
-            vote_counts.insert(question, 0);
-            let count = vote_counts.get_mut(question).expect("Question not found");
+        for (_team_id, ids) in message_ids {
+            if let Ok((channel_id, message_id)) = ids {
+                for (index, question) in self.vote_options.iter().enumerate() {
+                    vote_counts.insert(question, 0);
+                    let count = vote_counts.get_mut(question).expect("Question not found");
 
-            let reaction = VOTE_REACTIONS[index].into();
-            let players = output_pipe
-                .read_reactions(message_id, reaction)
-                .context("Could not read vote reactions")?;
+                    let reaction = VOTE_REACTIONS[index].into();
+                    let players = output_pipe
+                        .read_reactions(*channel_id, *message_id, reaction)
+                        .context("Could not read vote reactions")?;
 
-            for player in &players {
-                let is_valid_vote = match &self.voting_team {
-                    Some(team_id) => self
-                        .teams
-                        .read()
-                        .iter()
-                        .find(|t| &t.id == team_id)
-                        .and_then(|t| Some(t.players.contains(player)))
-                        .unwrap_or(false),
-                    None => true,
-                };
-                if is_valid_vote {
-                    *count += 1;
+                    for player in &players {
+                        let is_valid_vote = match &self.voting_team {
+                            Some(team_id) => self
+                                .teams
+                                .read()
+                                .iter()
+                                .find(|t| &t.id == team_id)
+                                .and_then(|t| Some(t.players.contains(player)))
+                                .unwrap_or(false),
+                            None => true,
+                        };
+                        if is_valid_vote {
+                            *count += 1;
+                        }
+                    }
                 }
             }
         }
@@ -126,29 +130,37 @@ impl VoteState {
 
 impl State for VoteState {
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        let speaking_to = match &self.voting_team {
-            None => "Everyone".into(),
-            Some(TeamId::TeamName(name)) => format!("Team {}", name),
+        match &self.voting_team {
+            Some(team_id) => match team_id {
+                TeamId::TeamName(team_name) => {
+                    output_pipe.say(
+                        &Recipient::AllTeamsExcept(team_id.clone()),
+                        &format!(
+                            "**{}** is choosing a category for the next question.",
+                            team_name
+                        ),
+                    );
+                }
+            },
+            _ => (),
         };
-        let mut message: String = format!(
-            "{}, vote for the next question by reacting to this message! 🗳️\n",
-            speaking_to
-        );
 
+        let mut poll_message: String =
+            "Vote for the next question by reacting to this message! 🗳️\n".to_owned();
         let mut reactions = Vec::new();
         for (index, question) in self.vote_options.iter().enumerate() {
-            message.push_str(&format!(
+            poll_message.push_str(&format!(
                 "\n{} **{}** {}pts",
                 VOTE_REACTIONS[index], question.category, question.score_value
             ));
             reactions.push(VOTE_REACTIONS[index].into());
         }
-
-        if let Some(OutputResult::Message(message_id)) =
-            output_pipe.push(Payload::TextWithReactions(message, reactions))
-        {
-            self.vote_message_id = Some(message_id);
-        }
+        let recipient = match &self.voting_team {
+            None => Recipient::AllTeams,
+            Some(team_id) => Recipient::Team(team_id.clone()),
+        };
+        self.vote_message_ids =
+            Some(output_pipe.say_with_reactions(&recipient, &poll_message, &reactions));
     }
 
     fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {

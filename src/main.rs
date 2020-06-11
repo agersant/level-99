@@ -39,7 +39,16 @@ impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         for guild in &ready.guilds {
-            if let Err(e) = channels::update_team_channels(&ctx, guild.id(), &vec![]) {
+            let guild_id = guild.id();
+            let game_pool = ctx
+                .data
+                .read()
+                .get::<GamePool>()
+                .cloned()
+                .expect("Expected GamePool in ShareMap.");
+            let game_lock = game_pool.get_game(&ctx, guild_id);
+            let game = game_lock.lock();
+            if let Err(e) = channels::update_team_channels(&ctx, guild_id, game.get_teams()) {
                 eprintln!("Could not initialize team channels: {:#}", e);
             }
         }
