@@ -27,7 +27,7 @@ Nice to have:
 [x] Command groups for quizz VS setup
 [x] Commands to pause/unpause
 [] Command to end quizz
-[] Skip question command
+[x] Skip question command
 [] Bot personality (image, name, texts)
 [] Announce winning team
 [] Review TODO comments
