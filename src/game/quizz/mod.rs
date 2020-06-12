@@ -84,7 +84,6 @@ impl Quizz {
         let state = self.current_phase.get_state();
         state.on_end(&mut output_pipe);
 
-        println!("Entering quizz phase: {:?}", &phase);
         self.current_phase = phase;
 
         let state = self.current_phase.get_state();

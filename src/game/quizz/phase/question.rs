@@ -1,12 +1,19 @@
 use anyhow::*;
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::path::Path;
 use std::time::Duration;
 
 use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
+
+const SFX_CORRECT: &'static str = "assets/correct.wav";
+const SFX_INCORRECT: &'static str = "assets/incorrect.wav";
+const SFX_QUESTION: &'static str = "assets/question.wav";
+const SFX_TIME: &'static str = "assets/time.wav";
+const QUESTION_AUDIO_DELAY: Duration = Duration::from_millis(3_500);
 
 #[derive(Clone, Debug)]
 pub struct GuessResult {
@@ -23,6 +30,7 @@ pub struct QuestionState {
     time_limit: Duration,
     guesses: HashMap<TeamId, GuessResult>,
     teams: TeamsHandle,
+    started_question_audio: bool,
 }
 
 impl QuestionState {
@@ -33,6 +41,7 @@ impl QuestionState {
             time_limit: duration,
             guesses: HashMap::new(),
             teams,
+            started_question_audio: false,
         }
     }
 
@@ -68,6 +77,7 @@ impl QuestionState {
         };
 
         if guess_result.is_correct {
+            output_pipe.play_file_audio(Path::new(SFX_CORRECT)).ok();
             output_pipe.say(
                 &Recipient::AllTeams,
                 &format!(
@@ -76,6 +86,7 @@ impl QuestionState {
                 ),
             );
         } else {
+            output_pipe.play_file_audio(Path::new(SFX_INCORRECT)).ok();
             output_pipe.say(
                 &Recipient::AllTeams,
                 &format!(
@@ -86,11 +97,25 @@ impl QuestionState {
             );
         }
 
+        if self.did_every_team_submit_a_guess() {
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!(
+                    "The answer was **{}**:\n{}",
+                    self.question.answer, self.question.url
+                ),
+            );
+        }
+
         Ok(guess_result)
     }
 
     fn was_correctly_guessed(&self) -> bool {
         self.guesses.iter().any(|(_t, g)| g.is_correct)
+    }
+
+    fn did_every_team_submit_a_guess(&self) -> bool {
+        self.guesses.len() == self.teams.read().len()
     }
 
     fn compute_score_delta(&self, correct: bool) -> i32 {
@@ -156,10 +181,24 @@ impl State for QuestionState {
         let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
         let time_remaining_after = self.time_limit.checked_sub(self.time_elapsed);
-        self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
+
+        if !self.did_every_team_submit_a_guess() {
+            self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
+        }
+
+        if !self.started_question_audio && self.time_elapsed > QUESTION_AUDIO_DELAY {
+            self.started_question_audio = true;
+            if let Err(e) = output_pipe.play_youtube_audio(self.question.url.clone()) {
+                output_pipe.say(
+                    &Recipient::AllTeams,
+                    &format!("Oops that didn't actually work: {}", e),
+                );
+            }
+        }
     }
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
+        output_pipe.play_file_audio(Path::new(SFX_QUESTION)).ok();
         output_pipe.say(
             &Recipient::AllTeams,
             &format!(
@@ -167,28 +206,29 @@ impl State for QuestionState {
                 self.question.category, self.question.score_value
             ),
         );
-        if let Err(e) = output_pipe.play_audio(self.question.url.clone()) {
-            output_pipe.say(
-                &Recipient::AllTeams,
-                &format!("Oops that didn't actually work: {}", e),
-            );
-        }
     }
 
     fn on_end(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.say(
-            &Recipient::AllTeams,
-            &format!(
-                "⏰ Time's up! The answer was **{}**:\n{}",
-                self.question.answer, self.question.url
-            ),
-        );
         if let Err(e) = output_pipe.stop_audio() {
             output_pipe.say(
                 &Recipient::AllTeams,
-                &format!("Oh no. There was a problem stopping the music: {}", e),
+                &format!("There was a problem stopping the music: {}", e),
             );
         }
+
+        if self.did_every_team_submit_a_guess() {
+            output_pipe.say(&Recipient::AllTeams, "Let's move on!");
+        } else {
+            output_pipe.play_file_audio(Path::new(SFX_TIME)).ok();
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!(
+                    "⏰ Time's up! The answer was **{}**:\n{}",
+                    self.question.answer, self.question.url
+                ),
+            );
+        }
+
         self.print_scores(output_pipe);
     }
 
