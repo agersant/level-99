@@ -216,9 +216,7 @@ impl State for QuestionState {
             );
         }
 
-        if self.did_every_team_submit_a_guess() {
-            output_pipe.say(&Recipient::AllTeams, "Let's move on!");
-        } else {
+        if !self.did_every_team_submit_a_guess() {
             output_pipe.play_file_audio(Path::new(SFX_TIME)).ok();
             output_pipe.say(
                 &Recipient::AllTeams,
