@@ -9,6 +9,7 @@ use crate::game::quizz::definition::Question;
 use crate::game::quizz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
+use crate::preload;
 
 const SFX_CORRECT: &'static str = "assets/correct.wav";
 const SFX_INCORRECT: &'static str = "assets/incorrect.wav";
@@ -193,9 +194,13 @@ impl State for QuestionState {
             (None, None) => true,
         };
         if should_start_song {
-            self.song_audio = output_pipe
-                .play_youtube_audio(self.question.url.clone())
-                .ok();
+            if let Some(path) = preload::retrieve_song(&self.question.url) {
+                self.song_audio = output_pipe.play_file_audio(&path).ok();
+            } else {
+                self.song_audio = output_pipe
+                    .play_youtube_audio(self.question.url.clone())
+                    .ok();
+            }
         }
     }
 

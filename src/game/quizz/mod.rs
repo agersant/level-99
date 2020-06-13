@@ -56,7 +56,8 @@ impl Quizz {
         output_pipe: Arc<RwLock<OutputPipe>>,
     ) -> Quizz {
         let settings: Settings = Default::default();
-        let startup_state = StartupState::new(settings.startup_duration);
+        let startup_state =
+            StartupState::new(settings.startup_duration, definition.get_questions());
         let mut quizz = Quizz {
             remaining_questions: definition.get_questions().clone(),
             current_phase: Phase::Startup(startup_state.clone()),

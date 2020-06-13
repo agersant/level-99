@@ -16,6 +16,7 @@ mod channels;
 mod commands;
 mod game;
 mod output;
+mod preload;
 
 use crate::game::pool::Pool as GamePool;
 use crate::output::DiscordOutput;
