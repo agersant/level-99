@@ -34,14 +34,19 @@ Beta:
 [x] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
 [x] Reveal answer after all teams have submitted a guess
 [x] Remove vote for final question
-[] Bot personality (image, name, texts)
 [x] Add sound effects for: question about to start, correct answer, wrong answer, time's up, channel join
 [x] Mention that players should guess game name, not song name
 [x] Mention that bot audio level can be adjusted
-[] Announce winning team
-[] Command to end quizz
 [x] Shorten question duration by a few seconds
+
+Release:
+[] Bot personality (image, name, texts)
+[] Announce winning team
 [] Preload songs onto disk
+[] Command to end quizz
+[] Quiz is only one z
+[] Show all guesses after the answer
+[] Bug where players can Still votes with one category left
 
 Extra work:
 [] Review TODO comments
