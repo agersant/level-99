@@ -132,7 +132,12 @@ impl Quiz {
                 }
             }
             Phase::Cooldown(_s) => {
-                if self.remaining_questions.len() > 1 {
+                let remaining_categories: HashSet<&str> = self
+                    .remaining_questions
+                    .iter()
+                    .map(|q| q.category.as_str())
+                    .collect();
+                if remaining_categories.len() > 1 {
                     self.begin_vote();
                 } else {
                     self.begin_question();
@@ -173,7 +178,11 @@ impl Quiz {
                 return self.remaining_questions.take(&question);
             }
         }
-        let question = self.remaining_questions.iter().next().cloned();
+        let question = self
+            .remaining_questions
+            .iter()
+            .min_by_key(|q| q.score_value)
+            .cloned();
         if let Some(question) = question {
             return self.remaining_questions.take(&question);
         }
