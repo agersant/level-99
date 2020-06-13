@@ -41,6 +41,7 @@ Beta:
 [] Announce winning team
 [] Command to end quizz
 [x] Shorten question duration by a few seconds
+[] Preload songs onto disk
 
 Extra work:
 [] Review TODO comments
