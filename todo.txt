@@ -47,7 +47,7 @@ Release:
 [x] Quiz is only one z
 [x] Show all guesses after the answer
 [] Bug where players can still votes with one category left
-[] Fix instance of team name not being prefixed by Team and capitalized
+[x] Fix instance of team name not being prefixed by Team and capitalized
 
 Extra work:
 [] Review TODO comments

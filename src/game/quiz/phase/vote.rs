@@ -130,20 +130,20 @@ impl VoteState {
 
 impl State for VoteState {
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        match &self.voting_team {
-            Some(team_id) => match team_id {
-                TeamId::TeamName(team_name) => {
+        {
+            let teams = self.teams.read();
+            if let Some(team_id) = &self.voting_team {
+                if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
                     output_pipe.say(
                         &Recipient::AllTeamsExcept(team_id.clone()),
                         &format!(
-                            "⏳ **{}** is choosing a category for the next question.",
-                            team_name
+                            "⏳ **Team {}** is choosing a category for the next question.",
+                            team.get_display_name(),
                         ),
                     );
                 }
-            },
-            _ => (),
-        };
+            }
+        }
 
         let mut poll_message: String =
             "**🗳️ Choose a category**\nReact to this message to cast your vote for the next question's category!"
