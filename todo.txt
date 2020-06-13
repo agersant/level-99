@@ -45,8 +45,8 @@ Release:
 [x] Preload songs onto disk
 [] Command to end quiz
 [x] Quiz is only one z
-[] Show all guesses after the answer
-[] Bug where players can Still votes with one category left
+[x] Show all guesses after the answer
+[] Bug where players can still votes with one category left
 [] Fix instance of team name not being prefixed by Team and capitalized
 
 Extra work:

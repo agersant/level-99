@@ -107,6 +107,7 @@ impl QuestionState {
                     self.question.answer, self.question.url
                 ),
             );
+            self.reveal_guesses(output_pipe);
         }
 
         Ok(guess_result)
@@ -132,11 +133,29 @@ impl QuestionState {
         }
     }
 
+    fn reveal_guesses(&self, output_pipe: &mut OutputPipe) {
+        if self.guesses.is_empty() {
+            return;
+        }
+        let teams = self.teams.read();
+        let mut message = "This is what everyone guessed:".to_owned();
+        for (team_id, guess) in &self.guesses {
+            if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
+                message.push_str(&format!(
+                    "\n- **Team {}**: {}",
+                    team.get_display_name(),
+                    guess.guess
+                ));
+            }
+        }
+        output_pipe.say(&Recipient::AllTeams, &message);
+    }
+
     fn print_scores(&self, output_pipe: &mut OutputPipe) {
         let mut teams = self.teams.read().clone();
         teams.sort_by_key(|t| Reverse(t.score));
 
-        let mut recap = "Here are the scores so far:".to_owned();
+        let mut recap = "📈 Here are the scores so far:".to_owned();
         for (index, team) in teams.iter().enumerate() {
             let rank = match index {
                 0 => "🥇".to_owned(),
@@ -232,6 +251,7 @@ impl State for QuestionState {
                     self.question.answer, self.question.url
                 ),
             );
+            self.reveal_guesses(output_pipe);
         }
 
         self.print_scores(output_pipe);
