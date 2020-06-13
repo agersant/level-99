@@ -7,18 +7,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub mod pool;
-mod quizz;
+mod quiz;
 pub mod team;
 
-use self::quizz::definition::QuizzDefinition;
-use self::quizz::Quizz;
+use self::quiz::definition::QuizDefinition;
+use self::quiz::Quiz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
 
 enum Phase {
     Startup,
     Setup,
-    Quizz(Quizz),
+    Quiz(Quiz),
 }
 
 pub struct Game {
@@ -50,21 +50,21 @@ impl Game {
         }
         match &mut self.current_phase {
             Phase::Startup | Phase::Setup => (),
-            Phase::Quizz(quizz) => {
-                quizz.tick(dt);
-                if quizz.is_over() {
+            Phase::Quiz(quiz) => {
+                quiz.tick(dt);
+                if quiz.is_over() {
                     self.set_current_phase(Phase::Setup);
                 }
             }
         };
     }
 
-    pub fn begin(&mut self, quizz_path: &Path) -> Result<()> {
+    pub fn begin(&mut self, quiz_path: &Path) -> Result<()> {
         match &self.current_phase {
             Phase::Setup => {
-                let definition = QuizzDefinition::open(quizz_path)?;
-                let quizz = Quizz::new(definition, self.teams.clone(), self.output_pipe.clone());
-                self.set_current_phase(Phase::Quizz(quizz));
+                let definition = QuizDefinition::open(quiz_path)?;
+                let quiz = Quiz::new(definition, self.teams.clone(), self.output_pipe.clone());
+                self.set_current_phase(Phase::Quiz(quiz));
                 Ok(())
             }
             _ => Err(anyhow!("Cannot call begin outside of setup phase")),
@@ -73,11 +73,11 @@ impl Game {
 
     pub fn skip(&mut self) -> Result<()> {
         match &mut self.current_phase {
-            Phase::Quizz(q) => {
+            Phase::Quiz(q) => {
                 q.skip_phase();
                 Ok(())
             }
-            _ => Err(anyhow!("There is no quizz in progress")),
+            _ => Err(anyhow!("There is no quiz in progress")),
         }
     }
 
@@ -87,8 +87,8 @@ impl Game {
             .context("Player is not on a team")?;
 
         match &mut self.current_phase {
-            Phase::Quizz(quizz) => {
-                quizz.guess(&team_id, guess)?;
+            Phase::Quiz(quiz) => {
+                quiz.guess(&team_id, guess)?;
                 Ok(())
             }
             _ => Err(anyhow!("Cannot submit answers during setup phase")),
@@ -102,7 +102,7 @@ impl Game {
         };
         let is_player_on_team = self.get_player_team(player).is_some();
         if is_player_on_team && !is_setup_phase {
-            return Err(anyhow!("Team can not be changed during a quizz"));
+            return Err(anyhow!("Team can not be changed during a quiz"));
         }
 
         let mut teams = self.teams.write();

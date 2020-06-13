@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::game::quizz::State;
+use crate::game::quiz::State;
 use crate::output::OutputPipe;
 
 #[derive(Debug)]

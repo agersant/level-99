@@ -96,8 +96,8 @@ fn main() -> Result<()> {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("!"))
-            .group(&commands::quizzmaster::MAIN_GROUP)
-            .group(&commands::quizzmaster::RESET_GROUP)
+            .group(&commands::quizmaster::MAIN_GROUP)
+            .group(&commands::quizmaster::RESET_GROUP)
             .group(&commands::player::MAIN_GROUP),
     );
 

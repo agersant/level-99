@@ -1,6 +1,6 @@
 MVP:
 [x] Time limit on question
-[x] Return to setup phase when quizz is over
+[x] Return to setup phase when quiz is over
 [x] Team channels
 [x] Guessing earns or removes points
 [x] Teams can only guess once
@@ -10,7 +10,7 @@ MVP:
 [x] Regex/fuzzy guesses
 [x] Don't allow begin before joining voice room
 [x] Announce answers in chat after questions
-[x] Command to skip quizz phase
+[x] Command to skip quiz phase
 [x] Recap score between questions
 [x] Join team mid-game if not already on a team
 [x] Go straight to results after last question
@@ -22,16 +22,16 @@ MVP:
 Alpha:
 [x] Warning for 30 and 10 seconds left
 [x] Remind of team commands at the start of setup phase
-[x] Remind of guess commands at the start of quizz phase
+[x] Remind of guess commands at the start of quiz phase
 [x] Command permissions
-[x] Command groups for quizz VS setup
+[x] Command groups for quiz VS setup
 [x] Commands to pause/unpause
 [x] Command to skip question
 
 Beta:
 [x] Fix bug where second guess loses full question value if first guess was also wrong
 [x] Sanitize team names
-[x] Post quizz updates to team channels (and allow voting there too, beware of dupe votes)
+[x] Post quiz updates to team channels (and allow voting there too, beware of dupe votes)
 [x] Reveal answer after all teams have submitted a guess
 [x] Remove vote for final question
 [x] Add sound effects for: question about to start, correct answer, wrong answer, time's up, channel join
@@ -40,11 +40,11 @@ Beta:
 [x] Shorten question duration by a few seconds
 
 Release:
-[] Bot personality (image, name, texts)
+[x] Bot personality (image, name, texts)
 [] Announce winning team
 [x] Preload songs onto disk
-[] Command to end quizz
-[] Quiz is only one z
+[] Command to end quiz
+[x] Quiz is only one z
 [] Show all guesses after the answer
 [] Bug where players can Still votes with one category left
 [] Fix instance of team name not being prefixed by Team and capitalized
@@ -57,5 +57,5 @@ Extra work:
 [] Solo play
 [] Double Jeopardy
 [] Final Jeopardy
-[] Create a quizzmaster role instead of relying on admin privilege
+[] Create a quizmaster role instead of relying on admin privilege
 [] Disk persistence

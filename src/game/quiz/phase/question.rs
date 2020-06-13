@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 
-use crate::game::quizz::definition::Question;
-use crate::game::quizz::State;
+use crate::game::quiz::definition::Question;
+use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
 use crate::preload;

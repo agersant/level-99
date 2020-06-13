@@ -9,12 +9,12 @@ pub use question::Question;
 use question::RawQuestion;
 
 #[derive(Debug)]
-pub struct QuizzDefinition {
+pub struct QuizDefinition {
     questions: HashSet<Question>,
 }
 
-impl QuizzDefinition {
-    pub fn open(source: &Path) -> Result<QuizzDefinition> {
+impl QuizDefinition {
+    pub fn open(source: &Path) -> Result<QuizDefinition> {
         let mut questions = HashSet::new();
 
         let file = File::open(source)?;
@@ -24,7 +24,7 @@ impl QuizzDefinition {
             questions.insert(raw_question.into());
         }
 
-        Ok(QuizzDefinition { questions })
+        Ok(QuizDefinition { questions })
     }
 
     pub fn get_questions(&self) -> &HashSet<Question> {

@@ -2,7 +2,7 @@ use serenity::{model::channel::Message, Result as SerenityResult};
 use std::path::Path;
 
 pub mod player;
-pub mod quizzmaster;
+pub mod quizmaster;
 
 const ERROR_MISSING_GUILD: &'static str = "This command cannot be used in a group or DM.";
 

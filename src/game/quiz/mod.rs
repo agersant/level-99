@@ -40,7 +40,7 @@ impl Phase {
         }
     }
 }
-pub struct Quizz {
+pub struct Quiz {
     pub teams: TeamsHandle,
     settings: Settings,
     current_phase: Phase,
@@ -49,16 +49,16 @@ pub struct Quizz {
     output_pipe: Arc<RwLock<OutputPipe>>,
 }
 
-impl Quizz {
+impl Quiz {
     pub fn new(
-        definition: QuizzDefinition,
+        definition: QuizDefinition,
         teams: TeamsHandle,
         output_pipe: Arc<RwLock<OutputPipe>>,
-    ) -> Quizz {
+    ) -> Quiz {
         let settings: Settings = Default::default();
         let startup_state =
             StartupState::new(settings.startup_duration, definition.get_questions());
-        let mut quizz = Quizz {
+        let mut quiz = Quiz {
             remaining_questions: definition.get_questions().clone(),
             current_phase: Phase::Startup(startup_state.clone()),
             initiative: None,
@@ -66,8 +66,8 @@ impl Quizz {
             settings,
             teams,
         };
-        quizz.set_current_phase(Phase::Startup(startup_state));
-        quizz
+        quiz.set_current_phase(Phase::Startup(startup_state));
+        quiz
     }
 
     pub fn is_over(&self) -> bool {
