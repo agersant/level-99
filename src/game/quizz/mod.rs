@@ -21,7 +21,6 @@ trait State {
     fn is_over(&self) -> bool;
 }
 
-#[derive(Debug)]
 enum Phase {
     Startup(StartupState),
     Cooldown(CooldownState),
@@ -41,7 +40,6 @@ impl Phase {
         }
     }
 }
-#[derive(Debug)]
 pub struct Quizz {
     pub teams: TeamsHandle,
     settings: Settings,

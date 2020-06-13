@@ -5,6 +5,7 @@ use serenity::model::channel::ReactionType;
 use serenity::model::id::{ChannelId, GuildId, MessageId, UserId};
 use serenity::prelude::Mutex;
 use serenity::voice;
+use serenity::voice::LockedAudio;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -59,23 +60,21 @@ impl DiscordOutput {
         Ok(message.id)
     }
 
-    pub fn play_youtube_audio(&self, guild_id: GuildId, url: String) -> Result<()> {
+    pub fn play_youtube_audio(&self, guild_id: GuildId, url: String) -> Result<LockedAudio> {
         let mut manager = self.client_voice_manager.lock();
         if let Some(handler) = manager.get_mut(guild_id) {
             let source = voice::ytdl(&url)?;
-            handler.play(source);
-            Ok(())
+            Ok(handler.play_returning(source))
         } else {
             Err(anyhow!("Not in a voice channel to play in"))
         }
     }
 
-    pub fn play_file_audio(&self, guild_id: GuildId, path: &Path) -> Result<()> {
+    pub fn play_file_audio(&self, guild_id: GuildId, path: &Path) -> Result<LockedAudio> {
         let mut manager = self.client_voice_manager.lock();
         if let Some(handler) = manager.get_mut(guild_id) {
             let source = voice::ffmpeg(path)?;
-            handler.play(source);
-            Ok(())
+            Ok(handler.play_returning(source))
         } else {
             Err(anyhow!("Not in a voice channel to play in"))
         }
@@ -222,12 +221,12 @@ impl OutputPipe {
         message_ids
     }
 
-    pub fn play_youtube_audio(&self, url: String) -> Result<()> {
+    pub fn play_youtube_audio(&self, url: String) -> Result<LockedAudio> {
         let discord_output = self.discord_output.lock();
         discord_output.play_youtube_audio(self.guild_id, url)
     }
 
-    pub fn play_file_audio(&self, path: &Path) -> Result<()> {
+    pub fn play_file_audio(&self, path: &Path) -> Result<LockedAudio> {
         let discord_output = self.discord_output.lock();
         discord_output.play_file_audio(self.guild_id, path)
     }

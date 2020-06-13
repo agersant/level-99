@@ -15,7 +15,6 @@ use self::quizz::Quizz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
 
-#[derive(Debug)]
 enum Phase {
     Startup,
     Setup,
@@ -42,7 +41,6 @@ impl Game {
     }
 
     fn set_current_phase(&mut self, phase: Phase) {
-        println!("Entering game phase: {:?}", phase);
         self.current_phase = phase;
     }
 

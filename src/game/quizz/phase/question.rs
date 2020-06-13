@@ -1,4 +1,5 @@
 use anyhow::*;
+use serenity::voice::LockedAudio;
 use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
@@ -13,7 +14,6 @@ const SFX_CORRECT: &'static str = "assets/correct.wav";
 const SFX_INCORRECT: &'static str = "assets/incorrect.wav";
 const SFX_QUESTION: &'static str = "assets/question.wav";
 const SFX_TIME: &'static str = "assets/time.wav";
-const QUESTION_AUDIO_DELAY: Duration = Duration::from_millis(3_500);
 
 #[derive(Clone, Debug)]
 pub struct GuessResult {
@@ -23,14 +23,14 @@ pub struct GuessResult {
     pub is_first_correct: bool,
 }
 
-#[derive(Debug)]
 pub struct QuestionState {
     question: Question,
     time_elapsed: Duration,
     time_limit: Duration,
     guesses: HashMap<TeamId, GuessResult>,
     teams: TeamsHandle,
-    started_question_audio: bool,
+    countdown_audio: Option<LockedAudio>,
+    song_audio: Option<LockedAudio>,
 }
 
 impl QuestionState {
@@ -41,7 +41,8 @@ impl QuestionState {
             time_limit: duration,
             guesses: HashMap::new(),
             teams,
-            started_question_audio: false,
+            countdown_audio: None,
+            song_audio: None,
         }
     }
 
@@ -186,19 +187,20 @@ impl State for QuestionState {
             self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
         }
 
-        if !self.started_question_audio && self.time_elapsed > QUESTION_AUDIO_DELAY {
-            self.started_question_audio = true;
-            if let Err(e) = output_pipe.play_youtube_audio(self.question.url.clone()) {
-                output_pipe.say(
-                    &Recipient::AllTeams,
-                    &format!("Oops that didn't actually work: {}", e),
-                );
-            }
+        let should_start_song = match (&self.countdown_audio, &self.song_audio) {
+            (_, Some(_)) => false,
+            (Some(a), None) => a.lock().finished,
+            (None, None) => true,
+        };
+        if should_start_song {
+            self.song_audio = output_pipe
+                .play_youtube_audio(self.question.url.clone())
+                .ok();
         }
     }
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.play_file_audio(Path::new(SFX_QUESTION)).ok();
+        self.countdown_audio = output_pipe.play_file_audio(Path::new(SFX_QUESTION)).ok();
         output_pipe.say(
             &Recipient::AllTeams,
             &format!(
