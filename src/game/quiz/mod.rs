@@ -124,12 +124,8 @@ impl Quiz {
                 self.begin_question();
             }
             Phase::Question(_s) => {
-                if self.remaining_questions.is_empty() {
-                    self.set_current_phase(Phase::Results(ResultsState::new()));
-                } else {
-                    let state = CooldownState::new(self.settings.cooldown_duration);
-                    self.set_current_phase(Phase::Cooldown(state));
-                }
+                let state = CooldownState::new(self.settings.cooldown_duration);
+                self.set_current_phase(Phase::Cooldown(state));
             }
             Phase::Cooldown(_s) => {
                 let remaining_categories: HashSet<&str> = self
@@ -137,10 +133,11 @@ impl Quiz {
                     .iter()
                     .map(|q| q.category.as_str())
                     .collect();
-                if remaining_categories.len() > 1 {
-                    self.begin_vote();
-                } else {
-                    self.begin_question();
+                match remaining_categories.len() {
+                    0 => self
+                        .set_current_phase(Phase::Results(ResultsState::new(self.teams.clone()))),
+                    1 => self.begin_question(),
+                    _ => self.begin_vote(),
                 }
             }
             Phase::Results(_s) => (),
@@ -156,7 +153,7 @@ impl Quiz {
             );
             self.set_current_phase(Phase::Question(state));
         } else {
-            self.set_current_phase(Phase::Results(ResultsState::new()));
+            self.set_current_phase(Phase::Results(ResultsState::new(self.teams.clone())));
         }
     }
 

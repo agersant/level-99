@@ -41,9 +41,8 @@ Beta:
 
 Release:
 [x] Bot personality (image, name, texts)
-[] Announce winning team
+[x] Announce winning team
 [x] Preload songs onto disk
-[] Command to end quiz
 [x] Quiz is only one z
 [x] Show all guesses after the answer
 [x] Bug where players can still votes with one category left
@@ -52,6 +51,7 @@ Release:
 Extra work:
 [] Review TODO comments
 [] Unit tests
+[] Command to end quiz
 [] Daily double
 [] Create game on ready and on join server instead of within get_game()
 [] Solo play
