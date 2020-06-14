@@ -52,6 +52,7 @@
 - [x] Command to reset teams
 
 ## Backlog
+- Commands to tweak settings
 - Review TODO comments
 - Unit tests
 - Command to end quiz
