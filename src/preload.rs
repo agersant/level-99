@@ -15,7 +15,7 @@ fn get_cache_dir() -> Result<PathBuf> {
 
 fn url_to_path(url: &str) -> Result<PathBuf> {
     let mut path = get_cache_dir()?;
-    let video_id_regex = Regex::new("v=([^&]+)")?;
+    let video_id_regex = Regex::new("v=([^&]+)")?; // TODO Don't compile regex this on every call
     for captures in video_id_regex.captures_iter(&url) {
         let id = captures[1].to_owned();
         path.push(id);
