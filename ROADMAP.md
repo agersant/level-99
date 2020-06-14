@@ -52,6 +52,7 @@
 - [x] Command to reset teams
 
 ## Backlog
+- Support for &t in URLs
 - Commands to tweak settings
 - Review TODO comments
 - Unit tests

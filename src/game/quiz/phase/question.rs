@@ -213,8 +213,8 @@ impl State for QuestionState {
             (None, None) => true,
         };
         if should_start_song {
-            if let Some(path) = preload::retrieve_song(&self.question.url) {
-                self.song_audio = output_pipe.play_file_audio(&path).ok();
+            if let Some(cache_entry) = preload::retrieve_song(&self.question.url) {
+                self.song_audio = output_pipe.play_file_audio(&cache_entry.path).ok();
             } else {
                 self.song_audio = output_pipe
                     .play_youtube_audio(self.question.url.clone())
