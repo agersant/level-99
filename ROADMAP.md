@@ -60,5 +60,6 @@
 - Double Jeopardy rules
 - Final Jeopardy rules
 - Create a quizmaster role instead of relying on admin privilege
+- Fine-tune required permissions instead of giving the bot admin rights
 - Disk persistence
 - Don't rely on external executables of FFMPEG and Youtube-DL
