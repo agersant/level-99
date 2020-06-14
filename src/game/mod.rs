@@ -95,6 +95,18 @@ impl Game {
         }
     }
 
+    pub fn disband_team(&mut self, team_name: &str) -> Result<()> {
+        let team_name = sanitize_name(team_name)?;
+        let team_id = TeamId::TeamName(team_name);
+        let mut teams = self.teams.write();
+        let index = teams
+            .iter()
+            .position(|t| t.id == team_id)
+            .context("Team not found")?;
+        teams.swap_remove(index);
+        Ok(())
+    }
+
     pub fn join_team(&mut self, player: UserId, team_name: &str) -> Result<()> {
         let is_setup_phase = match &self.current_phase {
             Phase::Setup => true,

@@ -1,5 +1,5 @@
 # Version 1.1
-- [] Command to delete team
+- [x] Command to delete team
 - [] Daily double
 
 ## Version 1.0
