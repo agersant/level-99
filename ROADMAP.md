@@ -59,6 +59,7 @@
 - Solo play
 - Double Jeopardy rules
 - Final Jeopardy rules
+- Help command
 - Create a quizmaster role instead of relying on admin privilege
 - Fine-tune required permissions instead of giving the bot admin rights
 - Disk persistence
