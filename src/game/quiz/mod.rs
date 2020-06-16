@@ -10,6 +10,7 @@ use self::settings::*;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::OutputPipe;
 
+pub mod assets;
 pub mod definition;
 mod phase;
 mod settings;
@@ -25,6 +26,7 @@ enum Phase {
     Startup(StartupState),
     Cooldown(CooldownState),
     Vote(VoteState),
+    Wager(WagerState),
     Question(QuestionState),
     Results(ResultsState),
 }
@@ -35,6 +37,7 @@ impl Phase {
             Phase::Startup(s) => s,
             Phase::Cooldown(s) => s,
             Phase::Vote(s) => s,
+            Phase::Wager(s) => s,
             Phase::Question(s) => s,
             Phase::Results(s) => s,
         }
@@ -46,6 +49,7 @@ pub struct Quiz {
     current_phase: Phase,
     initiative: Option<TeamId>,
     remaining_questions: HashSet<Question>,
+    max_question_score_value: u32,
     output_pipe: Arc<RwLock<OutputPipe>>,
 }
 
@@ -56,11 +60,14 @@ impl Quiz {
         output_pipe: Arc<RwLock<OutputPipe>>,
     ) -> Quiz {
         let settings: Settings = Default::default();
+        let questions = definition.get_questions().clone();
+        let max_question_score_value = questions.iter().map(|q| q.score_value).max().unwrap_or(0);
         let startup_state =
             StartupState::new(settings.startup_duration, definition.get_questions());
         let mut quiz = Quiz {
-            remaining_questions: definition.get_questions().clone(),
+            remaining_questions: questions,
             current_phase: Phase::Startup(startup_state.clone()),
+            max_question_score_value,
             initiative: None,
             output_pipe,
             settings,
@@ -111,6 +118,17 @@ impl Quiz {
         }
     }
 
+    pub fn wager(&mut self, team_id: &TeamId, amount: u32) -> Result<()> {
+        match &mut self.current_phase {
+            Phase::Wager(wager_state) => {
+                let mut output_pipe = self.output_pipe.write();
+                wager_state.wager(team_id, amount, &mut output_pipe)?;
+                Ok(())
+            }
+            _ => Err(anyhow!("This is not the time to wager")),
+        }
+    }
+
     pub fn skip_phase(&mut self) {
         self.advance();
     }
@@ -121,7 +139,17 @@ impl Quiz {
                 self.begin_vote();
             }
             Phase::Vote(_s) => {
-                self.begin_question();
+                self.initiate_question();
+            }
+            Phase::Wager(s) => {
+                let state = QuestionState::new(
+                    s.question.clone(),
+                    self.settings.question_duration,
+                    self.teams.clone(),
+                    s.participants.clone(),
+                    Some(s.wagers.clone()),
+                );
+                self.set_current_phase(Phase::Question(state));
             }
             Phase::Question(_s) => {
                 let state = CooldownState::new(self.settings.cooldown_duration);
@@ -136,7 +164,7 @@ impl Quiz {
                 match remaining_categories.len() {
                     0 => self
                         .set_current_phase(Phase::Results(ResultsState::new(self.teams.clone()))),
-                    1 => self.begin_question(),
+                    1 => self.initiate_question(),
                     _ => self.begin_vote(),
                 }
             }
@@ -144,14 +172,36 @@ impl Quiz {
         }
     }
 
-    fn begin_question(&mut self) {
+    fn initiate_question(&mut self) {
         if let Some(question) = self.select_question() {
-            let state = QuestionState::new(
-                question,
-                self.settings.question_duration,
-                self.teams.clone(),
-            );
-            self.set_current_phase(Phase::Question(state));
+            if question.daily_double {
+                let participants = match &self.initiative {
+                    Some(team_id) => {
+                        let mut h = HashSet::new();
+                        h.insert(team_id.clone());
+                        h
+                    }
+                    None => self.teams.read().iter().map(|t| t.id.clone()).collect(),
+                };
+                let state = WagerState::new(
+                    question,
+                    self.settings.wager_duration,
+                    self.teams.clone(),
+                    participants,
+                    self.max_question_score_value,
+                );
+                self.set_current_phase(Phase::Wager(state));
+            } else {
+                let participants = self.teams.read().iter().map(|t| t.id.clone()).collect();
+                let state = QuestionState::new(
+                    question,
+                    self.settings.question_duration,
+                    self.teams.clone(),
+                    participants,
+                    None,
+                );
+                self.set_current_phase(Phase::Question(state));
+            }
         } else {
             self.set_current_phase(Phase::Results(ResultsState::new(self.teams.clone())));
         }

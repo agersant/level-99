@@ -91,7 +91,21 @@ impl Game {
                 quiz.guess(&team_id, guess)?;
                 Ok(())
             }
-            _ => Err(anyhow!("Cannot submit answers during setup phase")),
+            _ => Err(anyhow!("There is no quizz in progress")),
+        }
+    }
+
+    pub fn wager(&mut self, player: UserId, amount: u32) -> Result<()> {
+        let team_id = self
+            .get_player_team(player)
+            .context("Player is not on a team")?;
+
+        match &mut self.current_phase {
+            Phase::Quiz(quiz) => {
+                quiz.wager(&team_id, amount)?;
+                Ok(())
+            }
+            _ => Err(anyhow!("There is no quizz in progress")),
         }
     }
 

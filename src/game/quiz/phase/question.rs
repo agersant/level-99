@@ -1,20 +1,16 @@
 use anyhow::*;
 use serenity::voice::LockedAudio;
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
+use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{OutputPipe, Recipient};
 use crate::preload;
-
-const SFX_CORRECT: &'static str = "assets/correct.wav";
-const SFX_INCORRECT: &'static str = "assets/incorrect.wav";
-const SFX_QUESTION: &'static str = "assets/question.wav";
-const SFX_TIME: &'static str = "assets/time.wav";
 
 #[derive(Clone, Debug)]
 pub struct GuessResult {
@@ -30,18 +26,28 @@ pub struct QuestionState {
     time_limit: Duration,
     guesses: HashMap<TeamId, GuessResult>,
     teams: TeamsHandle,
+    participants: HashSet<TeamId>,
+    wagers: Option<HashMap<TeamId, u32>>,
     countdown_audio: Option<LockedAudio>,
     song_audio: Option<LockedAudio>,
 }
 
 impl QuestionState {
-    pub fn new(question: Question, duration: Duration, teams: TeamsHandle) -> Self {
+    pub fn new(
+        question: Question,
+        duration: Duration,
+        teams: TeamsHandle,
+        participants: HashSet<TeamId>,
+        wagers: Option<HashMap<TeamId, u32>>,
+    ) -> Self {
         QuestionState {
             question,
             time_elapsed: Duration::default(),
             time_limit: duration,
             guesses: HashMap::new(),
             teams,
+            participants,
+            wagers,
             countdown_audio: None,
             song_audio: None,
         }
@@ -57,8 +63,12 @@ impl QuestionState {
             return Err(anyhow!("Team already made a guess"));
         }
 
+        if !self.participants.contains(team_id) {
+            return Err(anyhow!("Your team is not allowed to answer this question"));
+        }
+
         let is_correct = self.question.is_guess_correct(guess);
-        let score_delta = self.compute_score_delta(is_correct);
+        let score_delta = self.compute_score_delta(team_id, is_correct);
         let is_first_correct = is_correct && !self.was_correctly_guessed();
         let guess_result = GuessResult {
             guess: guess.into(),
@@ -118,19 +128,27 @@ impl QuestionState {
     }
 
     fn did_every_team_submit_a_guess(&self) -> bool {
-        self.guesses.len() == self.teams.read().len()
+        self.guesses.len() == self.participants.len()
     }
 
-    fn compute_score_delta(&self, correct: bool) -> i32 {
-        let score_value = self.question.score_value as i32;
-        let correctness_multiplier = if correct { 1 } else { -1 };
+    fn compute_score_value(&self, team_id: &TeamId) -> i32 {
+        let score_value = self
+            .wagers
+            .as_ref()
+            .and_then(|w| w.get(team_id).copied())
+            .unwrap_or(self.question.score_value) as i32;
         let is_first_guess = self.guesses.is_empty();
-        let delta = score_value * correctness_multiplier;
-        if is_first_guess {
-            delta
+        if is_first_guess || self.wagers.is_some() {
+            score_value
         } else {
-            delta / 2
+            score_value / 2
         }
+    }
+
+    fn compute_score_delta(&self, team_id: &TeamId, correct: bool) -> i32 {
+        let score_value = self.compute_score_value(team_id);
+        let correctness_multiplier = if correct { 1 } else { -1 };
+        score_value * correctness_multiplier
     }
 
     fn reveal_guesses(&self, output_pipe: &mut OutputPipe) {
@@ -225,24 +243,34 @@ impl State for QuestionState {
 
     fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
         self.countdown_audio = output_pipe.play_file_audio(Path::new(SFX_QUESTION)).ok();
-        output_pipe.say(
-            &Recipient::AllTeams,
-            &format!(
-                "🎧 Here is a song from the **{}** category for {} points!",
-                self.question.category, self.question.score_value
-            ),
-        );
+        if self.wagers.is_some() {
+            for team in self.teams.read().iter() {
+                if self.participants.contains(&team.id) {
+                    output_pipe.say(
+                        &Recipient::Team(team.id.clone()),
+                        &format!(
+                            "🎧 Here is a song from the **{}** category! Your team **must** guess this one right or you will lose points.",
+                            self.question.category
+                        ),
+                    );
+                }
+            }
+        } else {
+            output_pipe.say(
+                &Recipient::AllTeams,
+                &format!(
+                    "🎧 Here is a song from the **{}** category for {} points!",
+                    self.question.category, self.question.score_value
+                ),
+            );
+        }
     }
 
     fn on_end(&mut self, output_pipe: &mut OutputPipe) {
-        if let Err(e) = output_pipe.stop_audio() {
-            output_pipe.say(
-                &Recipient::AllTeams,
-                &format!("There was a problem stopping the music: {}", e),
-            );
-        }
+        output_pipe.stop_audio().ok();
 
         if !self.did_every_team_submit_a_guess() {
+            // Reveal answer
             output_pipe.play_file_audio(Path::new(SFX_TIME)).ok();
             output_pipe.say(
                 &Recipient::AllTeams,
@@ -251,7 +279,30 @@ impl State for QuestionState {
                     self.question.answer, self.question.url
                 ),
             );
+
+            // Show all guesses
             self.reveal_guesses(output_pipe);
+
+            // Deduct points for unanswered wager
+            if self.wagers.is_some() {
+                for team_id in &self.participants {
+                    if self.guesses.get(team_id).is_none() {
+                        if let Some(team) = self.teams.write().iter_mut().find(|t| t.id == *team_id)
+                        {
+                            let score_value = self.compute_score_value(team_id);
+                            team.update_score(-score_value);
+                            output_pipe.say(
+                                &Recipient::AllTeams,
+                                &format!(
+                                    "**Team {}** loses *{} points* for not answering the **CHALLENGE** question!",
+                                    team.get_display_name(),
+                                    score_value
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
         }
 
         self.print_scores(output_pipe);

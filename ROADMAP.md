@@ -1,6 +1,6 @@
 # Version 1.1
 - [x] Command to delete team
-- [] Daily double
+- [x] Daily double
 
 ## Version 1.0
 - [x] Bot personality (image, name, texts)
