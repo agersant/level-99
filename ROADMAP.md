@@ -1,6 +1,8 @@
 # Version 1.1
 - [x] Command to delete team
 - [x] Daily double
+- [] Review TODO comments
+- [] Unit tests
 
 ## Version 1.0
 - [x] Bot personality (image, name, texts)
@@ -54,8 +56,6 @@
 ## Backlog
 - Support for &t in URLs
 - Commands to tweak settings
-- Review TODO comments
-- Unit tests
 - Command to end quiz
 - Create game on ready and on join server instead of within get_game()
 - Solo play
