@@ -1,4 +1,5 @@
 use anyhow::*;
+use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use regex::Regex;
 use serenity::model::id::UserId;
@@ -7,11 +8,15 @@ use std::hash::Hash;
 use std::sync::Arc;
 use unidecode::unidecode;
 
+lazy_static! {
+    static ref FORBIDDEN_TEAM_NAME_CHARACTERS_REGEX: Regex = Regex::new("[^\\sa-z0-9-]").unwrap();
+    static ref WHITESPACE_REGEX: Regex = Regex::new("\\s+").unwrap();
+}
+
 pub fn sanitize_name(name: &str) -> Result<String> {
     let name = unidecode(name);
 
-    let forbidden_characters = Regex::new("[^\\sa-z0-9-]").unwrap(); // TODO avoid recompiling this regex everytime
-    let name: String = forbidden_characters
+    let name: String = FORBIDDEN_TEAM_NAME_CHARACTERS_REGEX
         .replace_all(&name.to_lowercase(), "")
         .into();
 
@@ -20,8 +25,7 @@ pub fn sanitize_name(name: &str) -> Result<String> {
         return Err(anyhow!("Invalid team name"));
     }
 
-    let whitespace = Regex::new("\\s+").unwrap(); // TODO avoid recompiling this regex everytime
-    let name: String = whitespace.replace_all(&name, "-").into();
+    let name: String = WHITESPACE_REGEX.replace_all(&name, "-").into();
     Ok(name)
 }
 

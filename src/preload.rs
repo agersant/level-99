@@ -8,6 +8,11 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
+lazy_static! {
+    static ref VIDEO_ID_REGEX: Regex = Regex::new("v=([^&]+)").unwrap();
+    static ref TIMESTAMP_REGEX: Regex = Regex::new("t=([0-9]+)").unwrap();
+}
+
 #[derive(Clone)]
 pub struct CacheEntry {
     pub path: PathBuf,
@@ -29,8 +34,7 @@ fn get_cache_dir() -> Result<PathBuf> {
 
 fn url_to_path(url: &str) -> Result<PathBuf> {
     let mut path = get_cache_dir()?;
-    let video_id_regex = Regex::new("v=([^&]+)")?; // TODO Don't compile regex this on every call
-    for captures in video_id_regex.captures_iter(&url) {
+    for captures in VIDEO_ID_REGEX.captures_iter(&url) {
         let id = captures[1].to_owned();
         path.push(id);
         return Ok(path);
@@ -39,8 +43,7 @@ fn url_to_path(url: &str) -> Result<PathBuf> {
 }
 
 fn url_to_start_time(url: &str) -> Result<Duration> {
-    let timestamp_regex = Regex::new("t=([0-9]+)").unwrap(); // TODO Don't compile regex this on every call
-    for captures in timestamp_regex.captures_iter(&url) {
+    for captures in TIMESTAMP_REGEX.captures_iter(&url) {
         if let Ok(seconds) = captures[1].to_owned().parse::<u64>() {
             return Ok(Duration::from_secs(seconds));
         }

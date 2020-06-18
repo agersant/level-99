@@ -1,13 +1,17 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde::de;
 use serde::{Deserialize, Deserializer};
 use std::hash::{Hash, Hasher};
 use unidecode::unidecode;
 
+lazy_static! {
+    static ref FORBIDDEN_GUESS_CHARACTERS_REGEX: Regex = Regex::new("[^a-z0-9]").unwrap();
+}
+
 fn sanitize(answer: &str) -> String {
     let answer = unidecode(answer);
-    let forbidden_characters = Regex::new("[^a-z0-9]").unwrap(); // TODO avoid recompiling this regex everytime
-    forbidden_characters
+    FORBIDDEN_GUESS_CHARACTERS_REGEX
         .replace_all(&answer.to_lowercase(), "")
         .into()
 }
