@@ -1,14 +1,12 @@
 use anyhow::*;
-use parking_lot::RwLock;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::time::Duration;
 
 use self::definition::*;
 use self::phase::*;
 use self::settings::*;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::OutputPipe;
+use crate::output::OutputHandle;
 
 pub mod assets;
 pub mod definition;
@@ -16,9 +14,9 @@ mod phase;
 mod settings;
 
 trait State {
-    fn on_begin(&mut self, output_pipe: &mut OutputPipe);
-    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration);
-    fn on_end(&mut self, output_pipe: &mut OutputPipe);
+    fn on_begin(&mut self);
+    fn on_tick(&mut self, dt: Duration);
+    fn on_end(&mut self);
     fn is_over(&self) -> bool;
 }
 
@@ -50,26 +48,25 @@ pub struct Quiz {
     initiative: Option<TeamId>,
     remaining_questions: HashSet<Question>,
     max_question_score_value: u32,
-    output_pipe: Arc<RwLock<OutputPipe>>,
+    output: OutputHandle,
 }
 
 impl Quiz {
-    pub fn new(
-        definition: QuizDefinition,
-        teams: TeamsHandle,
-        output_pipe: Arc<RwLock<OutputPipe>>,
-    ) -> Quiz {
+    pub fn new(definition: QuizDefinition, teams: TeamsHandle, output: OutputHandle) -> Quiz {
         let settings: Settings = Default::default();
         let questions = definition.get_questions().clone();
         let max_question_score_value = questions.iter().map(|q| q.score_value).max().unwrap_or(0);
-        let startup_state =
-            StartupState::new(settings.startup_duration, definition.get_questions());
+        let startup_state = StartupState::new(
+            settings.startup_duration,
+            definition.get_questions(),
+            output.clone(),
+        );
         let mut quiz = Quiz {
             remaining_questions: questions,
             current_phase: Phase::Startup(startup_state.clone()),
             max_question_score_value,
             initiative: None,
-            output_pipe,
+            output,
             settings,
             teams,
         };
@@ -85,20 +82,16 @@ impl Quiz {
     }
 
     fn set_current_phase(&mut self, phase: Phase) {
-        let mut output_pipe = self.output_pipe.write();
-
         let state = self.current_phase.get_state();
-        state.on_end(&mut output_pipe);
-
+        state.on_end();
         self.current_phase = phase;
-
         let state = self.current_phase.get_state();
-        state.on_begin(&mut output_pipe);
+        state.on_begin();
     }
 
     pub fn tick(&mut self, dt: Duration) {
         let state = self.current_phase.get_state();
-        state.on_tick(&mut self.output_pipe.write(), dt);
+        state.on_tick(dt);
         if state.is_over() {
             self.advance();
         }
@@ -107,8 +100,7 @@ impl Quiz {
     pub fn guess(&mut self, team_id: &TeamId, guess: &str) -> Result<()> {
         match &mut self.current_phase {
             Phase::Question(question_state) => {
-                let guess_result =
-                    question_state.guess(team_id, guess, &mut self.output_pipe.write())?;
+                let guess_result = question_state.guess(team_id, guess)?;
                 if guess_result.is_first_correct {
                     self.initiative = Some(team_id.clone());
                 }
@@ -121,8 +113,7 @@ impl Quiz {
     pub fn wager(&mut self, team_id: &TeamId, amount: u32) -> Result<()> {
         match &mut self.current_phase {
             Phase::Wager(wager_state) => {
-                let mut output_pipe = self.output_pipe.write();
-                wager_state.wager(team_id, amount, &mut output_pipe)?;
+                wager_state.wager(team_id, amount)?;
                 Ok(())
             }
             _ => Err(anyhow!("This is not the time to wager")),
@@ -146,6 +137,7 @@ impl Quiz {
                     s.question.clone(),
                     self.settings.question_duration,
                     self.teams.clone(),
+                    self.output.clone(),
                     s.participants.clone(),
                     Some(s.wagers.clone()),
                 );
@@ -162,8 +154,10 @@ impl Quiz {
                     .map(|q| q.category.as_str())
                     .collect();
                 match remaining_categories.len() {
-                    0 => self
-                        .set_current_phase(Phase::Results(ResultsState::new(self.teams.clone()))),
+                    0 => self.set_current_phase(Phase::Results(ResultsState::new(
+                        self.teams.clone(),
+                        self.output.clone(),
+                    ))),
                     1 => self.initiate_question(),
                     _ => self.begin_vote(),
                 }
@@ -187,6 +181,7 @@ impl Quiz {
                     question,
                     self.settings.wager_duration,
                     self.teams.clone(),
+                    self.output.clone(),
                     participants,
                     self.max_question_score_value,
                 );
@@ -197,13 +192,17 @@ impl Quiz {
                     question,
                     self.settings.question_duration,
                     self.teams.clone(),
+                    self.output.clone(),
                     participants,
                     None,
                 );
                 self.set_current_phase(Phase::Question(state));
             }
         } else {
-            self.set_current_phase(Phase::Results(ResultsState::new(self.teams.clone())));
+            self.set_current_phase(Phase::Results(ResultsState::new(
+                self.teams.clone(),
+                self.output.clone(),
+            )));
         }
     }
 
@@ -213,6 +212,7 @@ impl Quiz {
             &self.remaining_questions,
             self.initiative.clone(),
             self.teams.clone(),
+            self.output.clone(),
             self.settings.max_vote_options,
         );
         self.set_current_phase(Phase::Vote(state));
@@ -220,8 +220,7 @@ impl Quiz {
 
     fn select_question(&mut self) -> Option<Question> {
         if let Phase::Vote(vote_state) = &self.current_phase {
-            let mut output_pipe = self.output_pipe.write();
-            if let Ok(question) = vote_state.compute_vote_result(&mut output_pipe) {
+            if let Ok(question) = vote_state.compute_vote_result() {
                 return self.remaining_questions.take(&question);
             }
         }

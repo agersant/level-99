@@ -1,4 +1,5 @@
 use anyhow::*;
+use parking_lot::RwLock;
 use serenity::client::bridge::voice::ClientVoiceManager;
 use serenity::http::client::Http;
 use serenity::model::channel::ReactionType;
@@ -109,7 +110,6 @@ impl DiscordOutput {
     }
 }
 
-// TODO Keep more references to the Arc<RwLock<OutputPipe>> instead of passing it to a bunch of functions
 #[derive(Debug)]
 pub struct OutputPipe {
     guild_id: GuildId,
@@ -244,5 +244,64 @@ impl OutputPipe {
     ) -> Result<Vec<UserId>> {
         let discord_output = self.discord_output.lock();
         discord_output.read_reactions(channel_id, message_id, reaction)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OutputHandle {
+    pipe: Arc<RwLock<OutputPipe>>,
+}
+
+impl OutputHandle {
+    pub fn new(pipe: OutputPipe) -> Self {
+        OutputHandle {
+            pipe: Arc::new(RwLock::new(pipe)),
+        }
+    }
+
+    pub fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>) {
+        self.pipe.write().update_team_channels(channel_ids)
+    }
+
+    pub fn say(
+        &self,
+        recipient: &Recipient,
+        content: &str,
+    ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
+        self.pipe.read().say(recipient, content)
+    }
+
+    pub fn say_with_reactions(
+        &self,
+        recipient: &Recipient,
+        content: &str,
+        reactions: &Vec<String>,
+    ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
+        self.pipe
+            .read()
+            .say_with_reactions(recipient, content, reactions)
+    }
+
+    pub fn play_youtube_audio(&self, url: String) -> Result<LockedAudio> {
+        self.pipe.read().play_youtube_audio(url)
+    }
+
+    pub fn play_file_audio(&self, path: &Path) -> Result<LockedAudio> {
+        self.pipe.read().play_file_audio(path)
+    }
+
+    pub fn stop_audio(&self) -> Result<()> {
+        self.pipe.read().stop_audio()
+    }
+
+    pub fn read_reactions(
+        &self,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        reaction: String,
+    ) -> Result<Vec<UserId>> {
+        self.pipe
+            .read()
+            .read_reactions(channel_id, message_id, reaction)
     }
 }

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::game::Game;
-use crate::output::OutputPipe;
+use crate::output::{OutputHandle, OutputPipe};
 use crate::DiscordOutputManager;
 
 #[derive(Default)]
@@ -30,8 +30,8 @@ impl Pool {
                 .expect("Expected DiscordOutput in ShareMap.");
 
             let teams = Arc::new(RwLock::new(Vec::new()));
-            let dispatcher = OutputPipe::new(guild_id, &discord_output);
-            let game = Game::new(dispatcher, teams);
+            let output = OutputHandle::new(OutputPipe::new(guild_id, &discord_output));
+            let game = Game::new(output, teams);
             let mut map = self.games.write();
             map.insert(guild_id, Arc::new(Mutex::new(game)));
         }

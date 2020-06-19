@@ -9,7 +9,7 @@ use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Recipient};
+use crate::output::{OutputHandle, Recipient};
 use crate::preload;
 
 #[derive(Clone, Debug)]
@@ -30,6 +30,7 @@ pub struct QuestionState {
     wagers: Option<HashMap<TeamId, u32>>,
     countdown_audio: Option<LockedAudio>,
     song_audio: Option<LockedAudio>,
+    output: OutputHandle,
 }
 
 impl QuestionState {
@@ -37,6 +38,7 @@ impl QuestionState {
         question: Question,
         duration: Duration,
         teams: TeamsHandle,
+        output: OutputHandle,
         participants: HashSet<TeamId>,
         wagers: Option<HashMap<TeamId, u32>>,
     ) -> Self {
@@ -50,15 +52,11 @@ impl QuestionState {
             wagers,
             countdown_audio: None,
             song_audio: None,
+            output,
         }
     }
 
-    pub fn guess(
-        &mut self,
-        team_id: &TeamId,
-        guess: &str,
-        output_pipe: &mut OutputPipe,
-    ) -> Result<GuessResult> {
+    pub fn guess(&mut self, team_id: &TeamId, guess: &str) -> Result<GuessResult> {
         if self.guesses.contains_key(team_id) {
             return Err(anyhow!("Team already made a guess"));
         }
@@ -89,8 +87,8 @@ impl QuestionState {
         };
 
         if guess_result.is_correct {
-            output_pipe.play_file_audio(Path::new(SFX_CORRECT)).ok();
-            output_pipe.say(
+            self.output.play_file_audio(Path::new(SFX_CORRECT)).ok();
+            self.output.say(
                 &Recipient::AllTeams,
                 &format!(
                     "✅ **Team {}** guessed correctly and earned {} points!",
@@ -98,8 +96,8 @@ impl QuestionState {
                 ),
             );
         } else {
-            output_pipe.play_file_audio(Path::new(SFX_INCORRECT)).ok();
-            output_pipe.say(
+            self.output.play_file_audio(Path::new(SFX_INCORRECT)).ok();
+            self.output.say(
                 &Recipient::AllTeams,
                 &format!(
                     "❌ **Team {}** guessed incorrectly and lost {} points. Womp womp 📯.",
@@ -110,14 +108,14 @@ impl QuestionState {
         }
 
         if self.did_every_team_submit_a_guess() {
-            output_pipe.say(
+            self.output.say(
                 &Recipient::AllTeams,
                 &format!(
                     "The answer was **{}**:\n{}",
                     self.question.answer, self.question.url
                 ),
             );
-            self.reveal_guesses(output_pipe);
+            self.reveal_guesses();
         }
 
         Ok(guess_result)
@@ -151,7 +149,7 @@ impl QuestionState {
         score_value * correctness_multiplier
     }
 
-    fn reveal_guesses(&self, output_pipe: &mut OutputPipe) {
+    fn reveal_guesses(&self) {
         if self.guesses.is_empty() {
             return;
         }
@@ -166,10 +164,11 @@ impl QuestionState {
                 ));
             }
         }
-        output_pipe.say(&Recipient::AllTeams, &message);
+
+        self.output.say(&Recipient::AllTeams, &message);
     }
 
-    fn print_scores(&self, output_pipe: &mut OutputPipe) {
+    fn print_scores(&self) {
         let mut teams = self.teams.read().clone();
         teams.sort_by_key(|t| Reverse(t.score));
 
@@ -189,15 +188,10 @@ impl QuestionState {
             ));
         }
 
-        output_pipe.say(&Recipient::AllTeams, &recap);
+        self.output.say(&Recipient::AllTeams, &recap);
     }
 
-    fn print_time_remaining(
-        &self,
-        output_pipe: &mut OutputPipe,
-        before: &Option<Duration>,
-        after: &Option<Duration>,
-    ) {
+    fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
         match (before, after) {
             (Some(before), Some(after)) => {
                 let seconds_10 = Duration::from_secs(10);
@@ -205,9 +199,11 @@ impl QuestionState {
                 let threshold_10 = *before > seconds_10 && *after <= seconds_10;
                 let threshold_30 = *before > seconds_30 && *after <= seconds_30;
                 if threshold_10 {
-                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
+                    self.output
+                        .say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
                 } else if threshold_30 {
-                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
+                    self.output
+                        .say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
                 }
             }
             _ => (),
@@ -216,13 +212,13 @@ impl QuestionState {
 }
 
 impl State for QuestionState {
-    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) {
+    fn on_tick(&mut self, dt: Duration) {
         let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
         let time_remaining_after = self.time_limit.checked_sub(self.time_elapsed);
 
         if !self.did_every_team_submit_a_guess() {
-            self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
+            self.print_time_remaining(&time_remaining_before, &time_remaining_after);
         }
 
         let should_start_song = match (&self.countdown_audio, &self.song_audio) {
@@ -232,21 +228,22 @@ impl State for QuestionState {
         };
         if should_start_song {
             if let Some(cache_entry) = preload::retrieve_song(&self.question.url) {
-                self.song_audio = output_pipe.play_file_audio(&cache_entry.path).ok();
+                self.song_audio = self.output.play_file_audio(&cache_entry.path).ok();
             } else {
-                self.song_audio = output_pipe
+                self.song_audio = self
+                    .output
                     .play_youtube_audio(self.question.url.clone())
                     .ok();
             }
         }
     }
 
-    fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        self.countdown_audio = output_pipe.play_file_audio(Path::new(SFX_QUESTION)).ok();
+    fn on_begin(&mut self) {
+        self.countdown_audio = self.output.play_file_audio(Path::new(SFX_QUESTION)).ok();
         if self.wagers.is_some() {
             for team in self.teams.read().iter() {
                 if self.participants.contains(&team.id) {
-                    output_pipe.say(
+                    self.output.say(
                         &Recipient::Team(team.id.clone()),
                         &format!(
                             "🎧 Here is a song from the **{}** category! Your team **must** guess this one right or you will lose points.",
@@ -256,7 +253,7 @@ impl State for QuestionState {
                 }
             }
         } else {
-            output_pipe.say(
+            self.output.say(
                 &Recipient::AllTeams,
                 &format!(
                     "🎧 Here is a song from the **{}** category for {} points!",
@@ -266,13 +263,13 @@ impl State for QuestionState {
         }
     }
 
-    fn on_end(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.stop_audio().ok();
+    fn on_end(&mut self) {
+        self.output.stop_audio().ok();
 
         if !self.did_every_team_submit_a_guess() {
             // Reveal answer
-            output_pipe.play_file_audio(Path::new(SFX_TIME)).ok();
-            output_pipe.say(
+            self.output.play_file_audio(Path::new(SFX_TIME)).ok();
+            self.output.say(
                 &Recipient::AllTeams,
                 &format!(
                     "⏰ Time's up! The answer was **{}**:\n{}",
@@ -281,7 +278,7 @@ impl State for QuestionState {
             );
 
             // Show all guesses
-            self.reveal_guesses(output_pipe);
+            self.reveal_guesses();
 
             // Deduct points for unanswered wager
             if self.wagers.is_some() {
@@ -291,7 +288,7 @@ impl State for QuestionState {
                         {
                             let score_value = self.compute_score_value(team_id);
                             team.update_score(-score_value);
-                            output_pipe.say(
+                            self.output.say(
                                 &Recipient::AllTeams,
                                 &format!(
                                     "**Team {}** loses *{} points* for not answering the **CHALLENGE** question!",
@@ -305,7 +302,7 @@ impl State for QuestionState {
             }
         }
 
-        self.print_scores(output_pipe);
+        self.print_scores();
     }
 
     fn is_over(&self) -> bool {

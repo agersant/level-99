@@ -7,7 +7,7 @@ use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Recipient};
+use crate::output::{OutputHandle, Recipient};
 
 #[derive(Clone, Debug)]
 pub struct WagerState {
@@ -15,6 +15,7 @@ pub struct WagerState {
     time_elapsed: Duration,
     time_limit: Duration,
     teams: TeamsHandle,
+    output: OutputHandle,
     pub participants: HashSet<TeamId>,
     pub wagers: HashMap<TeamId, u32>,
     max_question_score_value: u32,
@@ -25,6 +26,7 @@ impl WagerState {
         question: Question,
         duration: Duration,
         teams: TeamsHandle,
+        output: OutputHandle,
         participants: HashSet<TeamId>,
         max_question_score_value: u32,
     ) -> Self {
@@ -33,18 +35,14 @@ impl WagerState {
             time_elapsed: Duration::default(),
             time_limit: duration,
             teams,
+            output,
             participants,
             wagers: HashMap::new(),
             max_question_score_value,
         }
     }
 
-    pub fn wager(
-        &mut self,
-        team_id: &TeamId,
-        amount: u32,
-        _output_pipe: &mut OutputPipe,
-    ) -> Result<()> {
+    pub fn wager(&mut self, team_id: &TeamId, amount: u32) -> Result<()> {
         if !self.participants.contains(team_id) {
             return Err(anyhow!("Your team is not allowed to wager."));
         }
@@ -69,12 +67,7 @@ impl WagerState {
         self.wagers.len() == self.participants.len()
     }
 
-    fn print_time_remaining(
-        &self,
-        output_pipe: &mut OutputPipe,
-        before: &Option<Duration>,
-        after: &Option<Duration>,
-    ) {
+    fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
         match (before, after) {
             (Some(before), Some(after)) => {
                 let seconds_10 = Duration::from_secs(10);
@@ -82,9 +75,11 @@ impl WagerState {
                 let threshold_10 = *before > seconds_10 && *after <= seconds_10;
                 let threshold_30 = *before > seconds_30 && *after <= seconds_30;
                 if threshold_10 {
-                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
+                    self.output
+                        .say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
                 } else if threshold_30 {
-                    output_pipe.say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
+                    self.output
+                        .say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
                 }
             }
             _ => (),
@@ -93,19 +88,19 @@ impl WagerState {
 }
 
 impl State for WagerState {
-    fn on_tick(&mut self, output_pipe: &mut OutputPipe, dt: Duration) {
+    fn on_tick(&mut self, dt: Duration) {
         let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
         let time_remaining_after = self.time_limit.checked_sub(self.time_elapsed);
 
         if !self.did_every_team_wager() {
-            self.print_time_remaining(output_pipe, &time_remaining_before, &time_remaining_after);
+            self.print_time_remaining(&time_remaining_before, &time_remaining_after);
         }
     }
 
-    fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
-        output_pipe.play_file_audio(Path::new(SFX_CHALLENGE)).ok();
-        output_pipe.say(
+    fn on_begin(&mut self) {
+        self.output.play_file_audio(Path::new(SFX_CHALLENGE)).ok();
+        self.output.say(
             &Recipient::AllTeams,
             &format!(
                 "⚠️ A **CHALLENGE** question has appeared in the **{}** category!",
@@ -115,7 +110,7 @@ impl State for WagerState {
         for team in self.teams.read().iter() {
             if self.participants.contains(&team.id) {
                 let wager_cap = self.get_wager_cap(&team.id);
-                output_pipe.say(
+                self.output.say(
                     &Recipient::Team(team.id.clone()),
                     &format!(
                         "🍀 **Your team must answer this question**. Use the `!wager amount` command to wager between {} and {} points. This is the amount your team will earn or lose from this question.",
@@ -123,7 +118,7 @@ impl State for WagerState {
                     ),
                 );
             } else {
-                output_pipe.say(
+                self.output.say(
                     &Recipient::Team(team.id.clone()),
                     "⏳ Please wait while other teams are responding to the **CHALLENGE** question.",
                 );
@@ -131,7 +126,7 @@ impl State for WagerState {
         }
     }
 
-    fn on_end(&mut self, output_pipe: &mut OutputPipe) {
+    fn on_end(&mut self) {
         let mut message = "".to_owned();
         for team_id in &self.participants {
             let amount = self
@@ -153,7 +148,7 @@ impl State for WagerState {
                 ));
             }
         }
-        output_pipe.say(&Recipient::AllTeams, &message);
+        self.output.say(&Recipient::AllTeams, &message);
     }
 
     fn is_over(&self) -> bool {

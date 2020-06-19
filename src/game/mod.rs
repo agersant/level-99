@@ -1,9 +1,7 @@
 use anyhow::*;
-use parking_lot::RwLock;
 use serenity::model::id::{ChannelId, UserId};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::Duration;
 
 pub mod pool;
@@ -13,7 +11,7 @@ pub mod team;
 use self::quiz::definition::QuizDefinition;
 use self::quiz::Quiz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Recipient};
+use crate::output::{OutputHandle, Recipient};
 
 enum Phase {
     Startup,
@@ -24,16 +22,16 @@ enum Phase {
 pub struct Game {
     current_phase: Phase,
     teams: TeamsHandle,
-    output_pipe: Arc<RwLock<OutputPipe>>,
+    output: OutputHandle,
     paused: bool,
 }
 
 impl Game {
-    pub fn new(output_pipe: OutputPipe, teams: TeamsHandle) -> Game {
+    pub fn new(output: OutputHandle, teams: TeamsHandle) -> Game {
         let mut game = Game {
             current_phase: Phase::Startup,
-            output_pipe: Arc::new(RwLock::new(output_pipe)),
             paused: false,
+            output,
             teams,
         };
         game.set_current_phase(Phase::Setup);
@@ -63,7 +61,7 @@ impl Game {
         match &self.current_phase {
             Phase::Setup => {
                 let definition = QuizDefinition::open(quiz_path)?;
-                let quiz = Quiz::new(definition, self.teams.clone(), self.output_pipe.clone());
+                let quiz = Quiz::new(definition, self.teams.clone(), self.output.clone());
                 self.set_current_phase(Phase::Quiz(quiz));
                 Ok(())
             }
@@ -164,8 +162,7 @@ impl Game {
             .find(|t| t.id == team_id)
             .context("Team not found")?;
         team.update_score(delta);
-        let output_pipe = self.output_pipe.read();
-        output_pipe.say(
+        self.output.say(
             &Recipient::AllTeams,
             &format!(
                 "Team {}'s score was updated to {} points",
@@ -178,8 +175,7 @@ impl Game {
 
     pub fn reset_teams(&mut self) {
         self.teams.write().clear();
-        let output_pipe = self.output_pipe.read();
-        output_pipe.say(&Recipient::AllTeams, "Teams were reset");
+        self.output.say(&Recipient::AllTeams, "Teams were reset");
     }
 
     pub fn reset_scores(&mut self) {
@@ -189,15 +185,13 @@ impl Game {
                 team.score = 0;
             }
         }
-        let output_pipe = self.output_pipe.read();
-        output_pipe.say(&Recipient::AllTeams, "Scores were reset");
+        self.output.say(&Recipient::AllTeams, "Scores were reset");
     }
 
     pub fn pause(&mut self) {
         if !self.paused {
             self.paused = true;
-            let output_pipe = self.output_pipe.read();
-            output_pipe.say(
+            self.output.say(
                 &Recipient::AllTeams,
                 "The game is now paused, use `!unpause` to resume.",
             );
@@ -207,14 +201,13 @@ impl Game {
     pub fn unpause(&mut self) {
         if self.paused {
             self.paused = false;
-            let output_pipe = self.output_pipe.read();
-            output_pipe.say(&Recipient::AllTeams, "The game has resumed.");
+            self.output
+                .say(&Recipient::AllTeams, "The game has resumed.");
         }
     }
 
     pub fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>) {
-        let mut output_pipe = self.output_pipe.write();
-        output_pipe.update_team_channels(channel_ids);
+        self.output.update_team_channels(channel_ids);
     }
 
     fn get_player_team(&self, player: UserId) -> Option<TeamId> {

@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputPipe, Recipient};
+use crate::output::{OutputHandle, Recipient};
 
 const VOTE_REACTIONS: &'static [&'static str] =
     &["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
@@ -22,6 +22,7 @@ pub struct VoteState {
     vote_options: Vec<Question>,
     voting_team: Option<TeamId>,
     teams: TeamsHandle,
+    output: OutputHandle,
     vote_message_ids: Option<HashMap<TeamId, Result<(ChannelId, MessageId)>>>,
 }
 
@@ -31,6 +32,7 @@ impl VoteState {
         remaining_questions: &HashSet<Question>,
         voting_team: Option<TeamId>,
         teams: TeamsHandle,
+        output: OutputHandle,
         max_vote_options: usize,
     ) -> Self {
         let state = VoteState {
@@ -39,6 +41,7 @@ impl VoteState {
             vote_options: VoteState::select_vote_options(remaining_questions, max_vote_options),
             voting_team,
             teams,
+            output,
             vote_message_ids: None,
         };
         state
@@ -72,7 +75,7 @@ impl VoteState {
             .collect()
     }
 
-    pub fn compute_vote_result(&self, output_pipe: &mut OutputPipe) -> Result<Question> {
+    pub fn compute_vote_result(&self) -> Result<Question> {
         let message_ids = self.vote_message_ids.as_ref().context("No vote message")?;
         let mut vote_counts = HashMap::new();
 
@@ -83,7 +86,8 @@ impl VoteState {
                     let count = vote_counts.get_mut(question).expect("Question not found");
 
                     let reaction = VOTE_REACTIONS[index].into();
-                    let players = output_pipe
+                    let players = self
+                        .output
                         .read_reactions(*channel_id, *message_id, reaction)
                         .context("Could not read vote reactions")?;
 
@@ -129,12 +133,12 @@ impl VoteState {
 }
 
 impl State for VoteState {
-    fn on_begin(&mut self, output_pipe: &mut OutputPipe) {
+    fn on_begin(&mut self) {
         {
             let teams = self.teams.read();
             if let Some(team_id) = &self.voting_team {
                 if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
-                    output_pipe.say(
+                    self.output.say(
                         &Recipient::AllTeamsExcept(team_id.clone()),
                         &format!(
                             "⏳ **Team {}** is choosing a category for the next question.",
@@ -160,15 +164,18 @@ impl State for VoteState {
             None => Recipient::AllTeams,
             Some(team_id) => Recipient::Team(team_id.clone()),
         };
-        self.vote_message_ids =
-            Some(output_pipe.say_with_reactions(&recipient, &poll_message, &reactions));
+        self.vote_message_ids = Some(self.output.say_with_reactions(
+            &recipient,
+            &poll_message,
+            &reactions,
+        ));
     }
 
-    fn on_tick(&mut self, _output_pipe: &mut OutputPipe, dt: Duration) {
+    fn on_tick(&mut self, dt: Duration) {
         self.time_elapsed += dt;
     }
 
-    fn on_end(&mut self, _output_pipe: &mut OutputPipe) {}
+    fn on_end(&mut self) {}
 
     fn is_over(&self) -> bool {
         self.time_elapsed >= self.time_to_wait

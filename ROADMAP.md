@@ -1,7 +1,7 @@
 # Version 1.1
 - [x] Command to delete team
 - [x] Daily double
-- [] Review TODO comments
+- [x] Review TODO comments
 - [] Unit tests
 
 ## Version 1.0
