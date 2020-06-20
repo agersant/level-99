@@ -2,6 +2,9 @@ use std::time::Duration;
 
 use crate::game::quiz::State;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct CooldownState {
     time_elapsed: Duration,
