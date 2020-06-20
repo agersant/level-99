@@ -142,10 +142,10 @@ impl State for WagerState {
                     .and_then(|t| Some(t.get_display_name().to_owned()))
             };
             if let Some(team_display_name) = team_display_name {
-                message.push_str(&format!(
+                message += &format!(
                     "**Team {}** is betting *{} points*!\n",
                     team_display_name, amount
-                ));
+                );
             }
         }
         self.output.say(&Recipient::AllTeams, &message);

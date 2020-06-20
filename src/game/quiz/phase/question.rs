@@ -157,11 +157,7 @@ impl QuestionState {
         let mut message = "This is what everyone guessed:".to_owned();
         for (team_id, guess) in &self.guesses {
             if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
-                message.push_str(&format!(
-                    "\n- **Team {}**: {}",
-                    team.get_display_name(),
-                    guess.guess
-                ));
+                message += &format!("\n- **Team {}**: {}", team.get_display_name(), guess.guess);
             }
         }
 
@@ -180,12 +176,12 @@ impl QuestionState {
                 2 => "🥉".to_owned(),
                 _ => format!("#{}", index + 1),
             };
-            recap.push_str(&format!(
+            recap += &format!(
                 "\n{} **Team {}** with {} points",
                 rank,
                 team.get_display_name(),
                 team.score
-            ));
+            );
         }
 
         self.output.say(&Recipient::AllTeams, &recap);

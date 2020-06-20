@@ -154,10 +154,10 @@ impl State for VoteState {
                 .to_owned();
         let mut reactions = Vec::new();
         for (index, question) in self.vote_options.iter().enumerate() {
-            poll_message.push_str(&format!(
+            poll_message += &format!(
                 "\n{} **{}** {}pts",
                 VOTE_REACTIONS[index], question.category, question.score_value
-            ));
+            );
             reactions.push(VOTE_REACTIONS[index].into());
         }
         let recipient = match &self.voting_team {
