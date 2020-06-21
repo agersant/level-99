@@ -5,29 +5,29 @@ use std::path::Path;
 use std::time::Duration;
 
 pub mod pool;
-mod quiz;
+pub mod quiz;
 pub mod team;
 
 use self::quiz::definition::QuizDefinition;
 use self::quiz::Quiz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
-use crate::output::{OutputHandle, Recipient};
+use crate::output::{GameOutput, Message, Recipient};
 
-enum Phase {
+enum Phase<O: GameOutput> {
     Startup,
     Setup,
-    Quiz(Quiz),
+    Quiz(Quiz<O>),
 }
 
-pub struct Game {
-    current_phase: Phase,
+pub struct Game<O: GameOutput> {
+    current_phase: Phase<O>,
     teams: TeamsHandle,
-    output: OutputHandle,
+    output: O,
     paused: bool,
 }
 
-impl Game {
-    pub fn new(output: OutputHandle, teams: TeamsHandle) -> Game {
+impl<O: GameOutput + Clone> Game<O> {
+    pub fn new(output: O, teams: TeamsHandle) -> Self {
         let mut game = Game {
             current_phase: Phase::Startup,
             paused: false,
@@ -38,7 +38,7 @@ impl Game {
         game
     }
 
-    fn set_current_phase(&mut self, phase: Phase) {
+    fn set_current_phase(&mut self, phase: Phase<O>) {
         self.current_phase = phase;
     }
 
@@ -61,6 +61,7 @@ impl Game {
         match &self.current_phase {
             Phase::Setup => {
                 let definition = QuizDefinition::open(quiz_path)?;
+                // TODO trigger preload from here?
                 let quiz = Quiz::new(definition, self.teams.clone(), self.output.clone());
                 self.set_current_phase(Phase::Quiz(quiz));
                 Ok(())
@@ -89,7 +90,7 @@ impl Game {
                 quiz.guess(&team_id, guess)?;
                 Ok(())
             }
-            _ => Err(anyhow!("There is no quizz in progress")),
+            _ => Err(anyhow!("There is no quiz in progress")),
         }
     }
 
@@ -103,7 +104,7 @@ impl Game {
                 quiz.wager(&team_id, amount)?;
                 Ok(())
             }
-            _ => Err(anyhow!("There is no quizz in progress")),
+            _ => Err(anyhow!("There is no quiz in progress")),
         }
     }
 
@@ -156,26 +157,25 @@ impl Game {
     }
 
     pub fn adjust_score(&mut self, team_id: TeamId, delta: i32) -> Result<()> {
-        let mut teams = self.teams.write();
-        let team = teams
-            .iter_mut()
-            .find(|t| t.id == team_id)
-            .context("Team not found")?;
-        team.update_score(delta);
+        let new_score = {
+            let mut teams = self.teams.write();
+            let team = teams
+                .iter_mut()
+                .find(|t| t.id == team_id)
+                .context("Team not found")?;
+            team.update_score(delta);
+            team.score
+        };
         self.output.say(
             &Recipient::AllTeams,
-            &format!(
-                "Team {}'s score was updated to {} points",
-                team.get_display_name(),
-                team.score
-            ),
+            &Message::TeamScoreAdjusted(team_id, new_score),
         );
         Ok(())
     }
 
     pub fn reset_teams(&mut self) {
         self.teams.write().clear();
-        self.output.say(&Recipient::AllTeams, "Teams were reset");
+        self.output.say(&Recipient::AllTeams, &Message::TeamsReset);
     }
 
     pub fn reset_scores(&mut self) {
@@ -185,16 +185,13 @@ impl Game {
                 team.score = 0;
             }
         }
-        self.output.say(&Recipient::AllTeams, "Scores were reset");
+        self.output.say(&Recipient::AllTeams, &Message::ScoresReset);
     }
 
     pub fn pause(&mut self) {
         if !self.paused {
             self.paused = true;
-            self.output.say(
-                &Recipient::AllTeams,
-                "The game is now paused, use `!unpause` to resume.",
-            );
+            self.output.say(&Recipient::AllTeams, &Message::GamePaused);
         }
     }
 
@@ -202,7 +199,7 @@ impl Game {
         if self.paused {
             self.paused = false;
             self.output
-                .say(&Recipient::AllTeams, "The game has resumed.");
+                .say(&Recipient::AllTeams, &Message::GameUnpaused);
         }
     }
 

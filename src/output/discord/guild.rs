@@ -1,125 +1,25 @@
 use anyhow::*;
-use parking_lot::RwLock;
-use serenity::client::bridge::voice::ClientVoiceManager;
-use serenity::http::client::Http;
-use serenity::model::channel::ReactionType;
 use serenity::model::id::{ChannelId, GuildId, MessageId, UserId};
 use serenity::prelude::Mutex;
-use serenity::voice;
 use serenity::voice::LockedAudio;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
 use crate::game::team::TeamId;
-
-pub enum Recipient {
-    AllTeams,
-    Team(TeamId),
-    AllTeamsExcept(TeamId),
-}
-
-pub struct DiscordOutput {
-    http: Arc<Http>,
-    client_voice_manager: Arc<Mutex<ClientVoiceManager>>,
-}
-
-impl std::fmt::Debug for DiscordOutput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DiscordOutput").finish()
-    }
-}
-
-impl DiscordOutput {
-    pub fn new(http: Arc<Http>, client_voice_manager: Arc<Mutex<ClientVoiceManager>>) -> Self {
-        DiscordOutput {
-            http,
-            client_voice_manager,
-        }
-    }
-
-    pub fn say(&self, channel_id: ChannelId, content: &str) -> Result<MessageId> {
-        let message = channel_id.say(&self.http, content)?;
-        Ok(message.id)
-    }
-
-    pub fn say_with_reactions(
-        &self,
-        channel_id: ChannelId,
-        content: &str,
-        reactions: &Vec<String>,
-    ) -> Result<MessageId> {
-        let reactions: Vec<ReactionType> = reactions
-            .into_iter()
-            .map(|r| ReactionType::Unicode(r.clone()))
-            .collect();
-        let message = channel_id.send_message(&self.http, |m| {
-            m.content(content);
-            m.reactions(reactions);
-            m
-        })?;
-        Ok(message.id)
-    }
-
-    pub fn play_youtube_audio(&self, guild_id: GuildId, url: String) -> Result<LockedAudio> {
-        let mut manager = self.client_voice_manager.lock();
-        if let Some(handler) = manager.get_mut(guild_id) {
-            let source = voice::ytdl(&url)?;
-            Ok(handler.play_returning(source))
-        } else {
-            Err(anyhow!("Not in a voice channel to play in"))
-        }
-    }
-
-    pub fn play_file_audio(&self, guild_id: GuildId, path: &Path) -> Result<LockedAudio> {
-        let mut manager = self.client_voice_manager.lock();
-        if let Some(handler) = manager.get_mut(guild_id) {
-            let source = voice::ffmpeg(path)?;
-            Ok(handler.play_returning(source))
-        } else {
-            Err(anyhow!("Not in a voice channel to play in"))
-        }
-    }
-
-    pub fn stop_audio(&self, guild_id: GuildId) -> Result<()> {
-        let mut manager = self.client_voice_manager.lock();
-        if let Some(handler) = manager.get_mut(guild_id) {
-            handler.stop();
-            Ok(())
-        } else {
-            Err(anyhow!("Not in a voice channel to play in"))
-        }
-    }
-
-    pub fn read_reactions(
-        &self,
-        channel_id: ChannelId,
-        message_id: MessageId,
-        reaction: String,
-    ) -> Result<Vec<UserId>> {
-        channel_id
-            .reaction_users(
-                &self.http,
-                message_id,
-                ReactionType::Unicode(reaction),
-                None,
-                None,
-            )
-            .map(|v| v.iter().map(|u| u.id).collect())
-            .map_err(|e| Error::new(e))
-    }
-}
+use crate::output::discord::DiscordOutput;
+use crate::output::Recipient;
 
 #[derive(Debug)]
-pub struct OutputPipe {
+pub struct GuildOutput {
     guild_id: GuildId,
     discord_output: Arc<Mutex<DiscordOutput>>,
     team_channels: HashMap<TeamId, ChannelId>,
 }
 
-impl OutputPipe {
-    pub fn new(guild_id: GuildId, discord_output: &Arc<Mutex<DiscordOutput>>) -> OutputPipe {
-        OutputPipe {
+impl GuildOutput {
+    pub fn new(guild_id: GuildId, discord_output: &Arc<Mutex<DiscordOutput>>) -> GuildOutput {
+        GuildOutput {
             guild_id,
             discord_output: Arc::clone(discord_output),
             team_channels: HashMap::new(),
@@ -244,64 +144,5 @@ impl OutputPipe {
     ) -> Result<Vec<UserId>> {
         let discord_output = self.discord_output.lock();
         discord_output.read_reactions(channel_id, message_id, reaction)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct OutputHandle {
-    pipe: Arc<RwLock<OutputPipe>>,
-}
-
-impl OutputHandle {
-    pub fn new(pipe: OutputPipe) -> Self {
-        OutputHandle {
-            pipe: Arc::new(RwLock::new(pipe)),
-        }
-    }
-
-    pub fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>) {
-        self.pipe.write().update_team_channels(channel_ids)
-    }
-
-    pub fn say(
-        &self,
-        recipient: &Recipient,
-        content: &str,
-    ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
-        self.pipe.read().say(recipient, content)
-    }
-
-    pub fn say_with_reactions(
-        &self,
-        recipient: &Recipient,
-        content: &str,
-        reactions: &Vec<String>,
-    ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
-        self.pipe
-            .read()
-            .say_with_reactions(recipient, content, reactions)
-    }
-
-    pub fn play_youtube_audio(&self, url: String) -> Result<LockedAudio> {
-        self.pipe.read().play_youtube_audio(url)
-    }
-
-    pub fn play_file_audio(&self, path: &Path) -> Result<LockedAudio> {
-        self.pipe.read().play_file_audio(path)
-    }
-
-    pub fn stop_audio(&self) -> Result<()> {
-        self.pipe.read().stop_audio()
-    }
-
-    pub fn read_reactions(
-        &self,
-        channel_id: ChannelId,
-        message_id: MessageId,
-        reaction: String,
-    ) -> Result<Vec<UserId>> {
-        self.pipe
-            .read()
-            .read_reactions(channel_id, message_id, reaction)
     }
 }

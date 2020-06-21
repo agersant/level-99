@@ -7,16 +7,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::game::Game;
-use crate::output::{OutputHandle, OutputPipe};
+use crate::output::discord::{DiscordGameOutput, GuildOutput};
 use crate::DiscordOutputManager;
 
 #[derive(Default)]
 pub struct Pool {
-    games: RwLock<HashMap<GuildId, Arc<Mutex<Game>>>>,
+    games: RwLock<HashMap<GuildId, Arc<Mutex<Game<DiscordGameOutput>>>>>,
 }
 
 impl Pool {
-    pub fn get_game(&self, ctx: &SerenityContext, guild_id: GuildId) -> Arc<Mutex<Game>> {
+    pub fn get_game(
+        &self,
+        ctx: &SerenityContext,
+        guild_id: GuildId,
+    ) -> Arc<Mutex<Game<DiscordGameOutput>>> {
         let game_exists = {
             let map = self.games.read();
             map.contains_key(&guild_id)
@@ -30,7 +34,8 @@ impl Pool {
                 .expect("Expected DiscordOutput in ShareMap.");
 
             let teams = Arc::new(RwLock::new(Vec::new()));
-            let output = OutputHandle::new(OutputPipe::new(guild_id, &discord_output));
+            let guild_output = GuildOutput::new(guild_id, &discord_output);
+            let output = DiscordGameOutput::new(guild_output, teams.clone());
             let game = Game::new(output, teams);
             let mut map = self.games.write();
             map.insert(guild_id, Arc::new(Mutex::new(game)));
