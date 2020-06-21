@@ -5,8 +5,7 @@ use std::path::Path;
 
 pub mod question;
 
-pub use question::Question;
-use question::RawQuestion;
+pub use question::{Question, RawQuestion};
 
 #[derive(Debug)]
 pub struct QuizDefinition {

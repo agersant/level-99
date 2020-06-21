@@ -31,7 +31,7 @@ pub enum Message {
     QuizRules,
     ScoresRecap(Vec<(TeamId, i32)>),
     ScoresReset,
-    SongBegins(String, u32),
+    QuestionBegins(Question),
     TeamScoreAdjusted(TeamId, i32),
     TeamsReset,
     TimeRemaining(Duration),

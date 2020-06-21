@@ -81,7 +81,7 @@ impl DiscordGameOutput {
             }
             TimeRemaining(duration) => format!("🕒 Only {} seconds left!", duration.as_secs()),
             ChallengeSongBegins(category) => format!("🎧 Here is a song from the **{}** category! Your team **must** guess this one right or you will lose points.", category),
-            SongBegins(category, value) => format!("🎧 Here is a song from the **{}** category for {} points!", category, value),
+            QuestionBegins(question) => format!("🎧 Here is a song from the **{}** category for {} points!", question.category, question.score_value),
             TimeUp(question) => format!("⏰ Time's up! The answer was **{}**:\n{}", question.answer, question.url),
             ChallengeSongTimeUp(team_id, amount) => format!("**Team {}** loses *{} points* for not answering the **CHALLENGE** question!", self.get_team_display_name(team_id), amount),
             GameResults(team_id) => format!("🎊🎊 **TEAM {} WINS IT ALL!** 🎊🎊", self.get_team_display_name(team_id)).to_uppercase(),

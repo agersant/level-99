@@ -11,6 +11,9 @@ use crate::game::{TeamId, TeamsHandle};
 use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 use crate::preload;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug)]
 pub struct GuessResult {
     pub guess: String,
@@ -221,7 +224,7 @@ impl<O: GameOutput> State for QuestionState<O> {
         } else {
             self.output.say(
                 &Recipient::AllTeams,
-                &Message::SongBegins(self.question.category.clone(), self.question.score_value),
+                &Message::QuestionBegins(self.question.clone()),
             );
         }
     }
