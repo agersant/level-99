@@ -19,7 +19,7 @@ mod output;
 mod preload;
 
 use crate::game::pool::Pool as GamePool;
-use crate::output::DiscordOutput;
+use crate::output::discord::DiscordOutput;
 
 struct VoiceManager;
 impl TypeMapKey for VoiceManager {

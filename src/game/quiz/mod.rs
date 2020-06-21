@@ -6,7 +6,7 @@ use self::definition::*;
 use self::phase::*;
 use self::settings::*;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::OutputHandle;
+use crate::output::GameOutput;
 
 pub mod assets;
 pub mod definition;
@@ -20,16 +20,16 @@ trait State {
     fn is_over(&self) -> bool;
 }
 
-enum Phase {
-    Startup(StartupState),
+enum Phase<O: GameOutput> {
+    Startup(StartupState<O>),
     Cooldown(CooldownState),
-    Vote(VoteState),
-    Wager(WagerState),
-    Question(QuestionState),
-    Results(ResultsState),
+    Vote(VoteState<O>),
+    Wager(WagerState<O>),
+    Question(QuestionState<O>),
+    Results(ResultsState<O>),
 }
 
-impl Phase {
+impl<O: GameOutput> Phase<O> {
     fn get_state(&mut self) -> &mut dyn State {
         match self {
             Phase::Startup(s) => s,
@@ -41,26 +41,23 @@ impl Phase {
         }
     }
 }
-pub struct Quiz {
+
+pub struct Quiz<O: GameOutput> {
     pub teams: TeamsHandle,
     settings: Settings,
-    current_phase: Phase,
+    current_phase: Phase<O>,
     initiative: Option<TeamId>,
     remaining_questions: HashSet<Question>,
     max_question_score_value: u32,
-    output: OutputHandle,
+    output: O,
 }
 
-impl Quiz {
-    pub fn new(definition: QuizDefinition, teams: TeamsHandle, output: OutputHandle) -> Quiz {
+impl<O: GameOutput + Clone> Quiz<O> {
+    pub fn new(definition: QuizDefinition, teams: TeamsHandle, output: O) -> Self {
         let settings: Settings = Default::default();
         let questions = definition.get_questions().clone();
         let max_question_score_value = questions.iter().map(|q| q.score_value).max().unwrap_or(0);
-        let startup_state = StartupState::new(
-            settings.startup_duration,
-            definition.get_questions(),
-            output.clone(),
-        );
+        let startup_state = StartupState::new(settings.startup_duration, output.clone());
         let mut quiz = Quiz {
             remaining_questions: questions,
             current_phase: Phase::Startup(startup_state.clone()),
@@ -81,7 +78,7 @@ impl Quiz {
         }
     }
 
-    fn set_current_phase(&mut self, phase: Phase) {
+    fn set_current_phase(&mut self, phase: Phase<O>) {
         let state = self.current_phase.get_state();
         state.on_end();
         self.current_phase = phase;

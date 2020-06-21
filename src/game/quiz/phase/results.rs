@@ -3,34 +3,32 @@ use std::time::Duration;
 
 use crate::game::quiz::State;
 use crate::game::TeamsHandle;
-use crate::output::{OutputHandle, Recipient};
+use crate::output::{GameOutput, Message, Recipient};
 
 const SFX_CONGRATS: &'static str = "assets/congrats.wav";
 
 #[derive(Debug)]
-pub struct ResultsState {
+pub struct ResultsState<O> {
     teams: TeamsHandle,
-    output: OutputHandle,
+    output: O,
 }
 
-impl ResultsState {
-    pub fn new(teams: TeamsHandle, output: OutputHandle) -> Self {
+impl<O> ResultsState<O> {
+    pub fn new(teams: TeamsHandle, output: O) -> Self {
         ResultsState { teams, output }
     }
 }
 
-impl State for ResultsState {
+impl<O: GameOutput> State for ResultsState<O> {
     fn on_tick(&mut self, _dt: Duration) {}
 
     fn on_begin(&mut self) {
         if let Some(winning_team) = self.teams.read().iter().max_by_key(|t| t.score) {
             self.output.play_file_audio(Path::new(SFX_CONGRATS)).ok();
-            let message = format!(
-                "🎊🎊 **TEAM {} WINS IT ALL!** 🎊🎊",
-                winning_team.get_display_name()
-            )
-            .to_uppercase();
-            self.output.say(&Recipient::AllTeams, &message);
+            self.output.say(
+                &Recipient::AllTeams,
+                &Message::GameResults(winning_team.id.clone()),
+            );
         }
     }
 

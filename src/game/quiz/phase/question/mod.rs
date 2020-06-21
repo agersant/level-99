@@ -1,5 +1,4 @@
 use anyhow::*;
-use serenity::voice::LockedAudio;
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -9,8 +8,11 @@ use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputHandle, Recipient};
+use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 use crate::preload;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug)]
 pub struct GuessResult {
@@ -20,7 +22,7 @@ pub struct GuessResult {
     pub is_first_correct: bool,
 }
 
-pub struct QuestionState {
+pub struct QuestionState<O: GameOutput> {
     question: Question,
     time_elapsed: Duration,
     time_limit: Duration,
@@ -28,17 +30,17 @@ pub struct QuestionState {
     teams: TeamsHandle,
     participants: HashSet<TeamId>,
     wagers: Option<HashMap<TeamId, u32>>,
-    countdown_audio: Option<LockedAudio>,
-    song_audio: Option<LockedAudio>,
-    output: OutputHandle,
+    countdown_audio: Option<O::Audio>,
+    song_audio: Option<O::Audio>,
+    output: O,
 }
 
-impl QuestionState {
+impl<O: GameOutput> QuestionState<O> {
     pub fn new(
         question: Question,
         duration: Duration,
         teams: TeamsHandle,
-        output: OutputHandle,
+        output: O,
         participants: HashSet<TeamId>,
         wagers: Option<HashMap<TeamId, u32>>,
     ) -> Self {
@@ -76,44 +78,31 @@ impl QuestionState {
         };
         self.guesses.insert(team_id.clone(), guess_result.clone());
 
-        let team_display_name = {
-            let mut teams = self.teams.write();
-            let team = teams
-                .iter_mut()
-                .find(|t| t.id == *team_id)
-                .context("Team not found")?;
-            team.update_score(guess_result.score_delta);
-            team.get_display_name().to_owned()
-        };
+        self.teams
+            .write()
+            .iter_mut()
+            .find(|t| t.id == *team_id)
+            .context("Team not found")?
+            .update_score(guess_result.score_delta);
 
         if guess_result.is_correct {
             self.output.play_file_audio(Path::new(SFX_CORRECT)).ok();
             self.output.say(
                 &Recipient::AllTeams,
-                &format!(
-                    "✅ **Team {}** guessed correctly and earned {} points!",
-                    team_display_name, guess_result.score_delta
-                ),
+                &Message::GuessCorrect(team_id.clone(), guess_result.score_delta),
             );
         } else {
             self.output.play_file_audio(Path::new(SFX_INCORRECT)).ok();
             self.output.say(
                 &Recipient::AllTeams,
-                &format!(
-                    "❌ **Team {}** guessed incorrectly and lost {} points. Womp womp 📯.",
-                    team_display_name,
-                    guess_result.score_delta.abs()
-                ),
+                &Message::GuessIncorrect(team_id.clone(), guess_result.score_delta.abs()),
             );
         }
 
         if self.did_every_team_submit_a_guess() {
             self.output.say(
                 &Recipient::AllTeams,
-                &format!(
-                    "The answer was **{}**:\n{}",
-                    self.question.answer, self.question.url
-                ),
+                &Message::AnswerReveal(self.question.clone()),
             );
             self.reveal_guesses();
         }
@@ -153,42 +142,21 @@ impl QuestionState {
         if self.guesses.is_empty() {
             return;
         }
-        let teams = self.teams.read();
-        let mut message = "This is what everyone guessed:".to_owned();
-        for (team_id, guess) in &self.guesses {
-            if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
-                message.push_str(&format!(
-                    "\n- **Team {}**: {}",
-                    team.get_display_name(),
-                    guess.guess
-                ));
-            }
-        }
-
-        self.output.say(&Recipient::AllTeams, &message);
+        let guesses = self
+            .guesses
+            .iter()
+            .map(|(team_id, guess_result)| (team_id.clone(), guess_result.guess.clone()))
+            .collect();
+        self.output
+            .say(&Recipient::AllTeams, &Message::GuessesReveal(guesses));
     }
 
     fn print_scores(&self) {
         let mut teams = self.teams.read().clone();
         teams.sort_by_key(|t| Reverse(t.score));
-
-        let mut recap = "📈 Here are the scores so far:".to_owned();
-        for (index, team) in teams.iter().enumerate() {
-            let rank = match index {
-                0 => "🥇".to_owned(),
-                1 => "🥈".to_owned(),
-                2 => "🥉".to_owned(),
-                _ => format!("#{}", index + 1),
-            };
-            recap.push_str(&format!(
-                "\n{} **Team {}** with {} points",
-                rank,
-                team.get_display_name(),
-                team.score
-            ));
-        }
-
-        self.output.say(&Recipient::AllTeams, &recap);
+        let teams = teams.iter().map(|t| (t.id.clone(), t.score)).collect();
+        self.output
+            .say(&Recipient::AllTeams, &Message::ScoresRecap(teams));
     }
 
     fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
@@ -199,11 +167,15 @@ impl QuestionState {
                 let threshold_10 = *before > seconds_10 && *after <= seconds_10;
                 let threshold_30 = *before > seconds_30 && *after <= seconds_30;
                 if threshold_10 {
-                    self.output
-                        .say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
+                    self.output.say(
+                        &Recipient::AllTeams,
+                        &Message::TimeRemaining(Duration::from_secs(10)),
+                    );
                 } else if threshold_30 {
-                    self.output
-                        .say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
+                    self.output.say(
+                        &Recipient::AllTeams,
+                        &Message::TimeRemaining(Duration::from_secs(30)),
+                    );
                 }
             }
             _ => (),
@@ -211,7 +183,7 @@ impl QuestionState {
     }
 }
 
-impl State for QuestionState {
+impl<O: GameOutput> State for QuestionState<O> {
     fn on_tick(&mut self, dt: Duration) {
         let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
@@ -223,7 +195,7 @@ impl State for QuestionState {
 
         let should_start_song = match (&self.countdown_audio, &self.song_audio) {
             (_, Some(_)) => false,
-            (Some(a), None) => a.lock().finished,
+            (Some(a), None) => a.is_finished(),
             (None, None) => true,
         };
         if should_start_song {
@@ -245,20 +217,14 @@ impl State for QuestionState {
                 if self.participants.contains(&team.id) {
                     self.output.say(
                         &Recipient::Team(team.id.clone()),
-                        &format!(
-                            "🎧 Here is a song from the **{}** category! Your team **must** guess this one right or you will lose points.",
-                            self.question.category
-                        ),
+                        &Message::ChallengeSongBegins(self.question.category.clone()),
                     );
                 }
             }
         } else {
             self.output.say(
                 &Recipient::AllTeams,
-                &format!(
-                    "🎧 Here is a song from the **{}** category for {} points!",
-                    self.question.category, self.question.score_value
-                ),
+                &Message::QuestionBegins(self.question.clone()),
             );
         }
     }
@@ -271,10 +237,7 @@ impl State for QuestionState {
             self.output.play_file_audio(Path::new(SFX_TIME)).ok();
             self.output.say(
                 &Recipient::AllTeams,
-                &format!(
-                    "⏰ Time's up! The answer was **{}**:\n{}",
-                    self.question.answer, self.question.url
-                ),
+                &Message::TimeUp(self.question.clone()),
             );
 
             // Show all guesses
@@ -284,19 +247,15 @@ impl State for QuestionState {
             if self.wagers.is_some() {
                 for team_id in &self.participants {
                     if self.guesses.get(team_id).is_none() {
+                        let score_value = self.compute_score_value(team_id);
                         if let Some(team) = self.teams.write().iter_mut().find(|t| t.id == *team_id)
                         {
-                            let score_value = self.compute_score_value(team_id);
                             team.update_score(-score_value);
-                            self.output.say(
-                                &Recipient::AllTeams,
-                                &format!(
-                                    "**Team {}** loses *{} points* for not answering the **CHALLENGE** question!",
-                                    team.get_display_name(),
-                                    score_value
-                                ),
-                            );
                         }
+                        self.output.say(
+                            &Recipient::AllTeams,
+                            &Message::ChallengeSongTimeUp(team_id.clone(), score_value),
+                        );
                     }
                 }
             }

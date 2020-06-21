@@ -34,7 +34,7 @@ where
     }
 }
 
-#[derive(Deserialize, Hash, PartialEq, Eq)]
+#[derive(Clone, Deserialize, Hash, PartialEq, Eq)]
 pub struct RawQuestion {
     pub url: String,
     pub answer: String,

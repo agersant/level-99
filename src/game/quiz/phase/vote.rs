@@ -10,35 +10,38 @@ use std::time::Duration;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputHandle, Recipient};
+use crate::output::{GameOutput, Message, Recipient};
 
 const VOTE_REACTIONS: &'static [&'static str] =
     &["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
 #[derive(Debug)]
-pub struct VoteState {
+pub struct VoteState<O> {
     time_elapsed: Duration,
     time_to_wait: Duration,
     vote_options: Vec<Question>,
     voting_team: Option<TeamId>,
     teams: TeamsHandle,
-    output: OutputHandle,
+    output: O,
     vote_message_ids: Option<HashMap<TeamId, Result<(ChannelId, MessageId)>>>,
 }
 
-impl VoteState {
+impl<O: GameOutput> VoteState<O> {
     pub fn new(
         duration: Duration,
         remaining_questions: &HashSet<Question>,
         voting_team: Option<TeamId>,
         teams: TeamsHandle,
-        output: OutputHandle,
+        output: O,
         max_vote_options: usize,
     ) -> Self {
         let state = VoteState {
             time_elapsed: Duration::default(),
             time_to_wait: duration,
-            vote_options: VoteState::select_vote_options(remaining_questions, max_vote_options),
+            vote_options: VoteState::<O>::select_vote_options(
+                remaining_questions,
+                max_vote_options,
+            ),
             voting_team,
             teams,
             output,
@@ -132,41 +135,40 @@ impl VoteState {
     }
 }
 
-impl State for VoteState {
+impl<O: GameOutput> State for VoteState<O> {
     fn on_begin(&mut self) {
-        {
-            let teams = self.teams.read();
-            if let Some(team_id) = &self.voting_team {
-                if let Some(team) = teams.iter().find(|t| t.id == *team_id) {
-                    self.output.say(
-                        &Recipient::AllTeamsExcept(team_id.clone()),
-                        &format!(
-                            "⏳ **Team {}** is choosing a category for the next question.",
-                            team.get_display_name(),
-                        ),
-                    );
-                }
-            }
+        if let Some(team_id) = &self.voting_team {
+            self.output.say(
+                &Recipient::AllTeamsExcept(team_id.clone()),
+                &Message::VoteWait(team_id.clone()),
+            );
         }
 
-        let mut poll_message: String =
-            "**🗳️ Choose a category**\nReact to this message to cast your vote for the next question's category!"
-                .to_owned();
-        let mut reactions = Vec::new();
-        for (index, question) in self.vote_options.iter().enumerate() {
-            poll_message.push_str(&format!(
-                "\n{} **{}** {}pts",
-                VOTE_REACTIONS[index], question.category, question.score_value
-            ));
-            reactions.push(VOTE_REACTIONS[index].into());
-        }
+        let reactions = self
+            .vote_options
+            .iter()
+            .enumerate()
+            .map(|(index, _question)| VOTE_REACTIONS[index].into())
+            .collect();
         let recipient = match &self.voting_team {
             None => Recipient::AllTeams,
             Some(team_id) => Recipient::Team(team_id.clone()),
         };
+        let poll_options = self
+            .vote_options
+            .iter()
+            .enumerate()
+            .map(|(index, question)| {
+                (
+                    VOTE_REACTIONS[index].to_owned(),
+                    question.category.clone(),
+                    question.score_value,
+                )
+            })
+            .collect();
         self.vote_message_ids = Some(self.output.say_with_reactions(
             &recipient,
-            &poll_message,
+            &Message::VotePoll(poll_options),
             &reactions,
         ));
     }

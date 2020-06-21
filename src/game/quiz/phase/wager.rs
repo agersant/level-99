@@ -7,26 +7,26 @@ use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{OutputHandle, Recipient};
+use crate::output::{GameOutput, Message, Recipient};
 
 #[derive(Clone, Debug)]
-pub struct WagerState {
+pub struct WagerState<O> {
     pub question: Question,
     time_elapsed: Duration,
     time_limit: Duration,
     teams: TeamsHandle,
-    output: OutputHandle,
+    output: O,
     pub participants: HashSet<TeamId>,
     pub wagers: HashMap<TeamId, u32>,
     max_question_score_value: u32,
 }
 
-impl WagerState {
+impl<O: GameOutput> WagerState<O> {
     pub fn new(
         question: Question,
         duration: Duration,
         teams: TeamsHandle,
-        output: OutputHandle,
+        output: O,
         participants: HashSet<TeamId>,
         max_question_score_value: u32,
     ) -> Self {
@@ -75,11 +75,15 @@ impl WagerState {
                 let threshold_10 = *before > seconds_10 && *after <= seconds_10;
                 let threshold_30 = *before > seconds_30 && *after <= seconds_30;
                 if threshold_10 {
-                    self.output
-                        .say(&Recipient::AllTeams, "🕒 Only 10 seconds left!");
+                    self.output.say(
+                        &Recipient::AllTeams,
+                        &Message::TimeRemaining(Duration::from_secs(10)),
+                    );
                 } else if threshold_30 {
-                    self.output
-                        .say(&Recipient::AllTeams, "🕒 Only 30 seconds left!");
+                    self.output.say(
+                        &Recipient::AllTeams,
+                        &Message::TimeRemaining(Duration::from_secs(30)),
+                    );
                 }
             }
             _ => (),
@@ -87,7 +91,7 @@ impl WagerState {
     }
 }
 
-impl State for WagerState {
+impl<O: GameOutput> State for WagerState<O> {
     fn on_tick(&mut self, dt: Duration) {
         let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
@@ -102,53 +106,37 @@ impl State for WagerState {
         self.output.play_file_audio(Path::new(SFX_CHALLENGE)).ok();
         self.output.say(
             &Recipient::AllTeams,
-            &format!(
-                "⚠️ A **CHALLENGE** question has appeared in the **{}** category!",
-                self.question.category
-            ),
+            &Message::WagerBegins(self.question.category.clone()),
         );
         for team in self.teams.read().iter() {
             if self.participants.contains(&team.id) {
                 let wager_cap = self.get_wager_cap(&team.id);
                 self.output.say(
                     &Recipient::Team(team.id.clone()),
-                    &format!(
-                        "🍀 **Your team must answer this question**. Use the `!wager amount` command to wager between {} and {} points. This is the amount your team will earn or lose from this question.",
-                        self.question.score_value, wager_cap
-                    ),
+                    &Message::WagerRules(self.question.score_value, wager_cap),
                 );
             } else {
-                self.output.say(
-                    &Recipient::Team(team.id.clone()),
-                    "⏳ Please wait while other teams are responding to the **CHALLENGE** question.",
-                );
+                self.output
+                    .say(&Recipient::Team(team.id.clone()), &Message::WagerWait);
             }
         }
     }
 
     fn on_end(&mut self) {
-        let mut message = "".to_owned();
-        for team_id in &self.participants {
-            let amount = self
-                .wagers
-                .get(team_id)
-                .copied()
-                .unwrap_or(self.question.score_value);
-            let team_display_name = {
-                let teams = self.teams.read();
-                teams
-                    .iter()
-                    .find(|t| t.id == *team_id)
-                    .and_then(|t| Some(t.get_display_name().to_owned()))
-            };
-            if let Some(team_display_name) = team_display_name {
-                message.push_str(&format!(
-                    "**Team {}** is betting *{} points*!\n",
-                    team_display_name, amount
-                ));
-            }
-        }
-        self.output.say(&Recipient::AllTeams, &message);
+        let wagers = self
+            .participants
+            .iter()
+            .map(|team_id| {
+                let amount = self
+                    .wagers
+                    .get(team_id)
+                    .copied()
+                    .unwrap_or(self.question.score_value);
+                (team_id.clone(), amount)
+            })
+            .collect();
+        self.output
+            .say(&Recipient::AllTeams, &Message::WagerResults(wagers));
     }
 
     fn is_over(&self) -> bool {
