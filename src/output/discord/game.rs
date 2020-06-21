@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::game::team::{TeamId, TeamsHandle};
 use crate::output::discord::GuildOutput;
-use crate::output::{GameOutput, Message, Recipient};
+use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 
 #[derive(Clone, Debug)]
 pub struct DiscordGameOutput {
@@ -107,7 +107,25 @@ impl DiscordGameOutput {
     }
 }
 
+pub struct DiscordAudio {
+    locked_audio: LockedAudio,
+}
+
+impl DiscordAudio {
+    pub fn new(locked_audio: LockedAudio) -> Self {
+        Self { locked_audio }
+    }
+}
+
+impl AudioHandle for DiscordAudio {
+    fn is_finished(&self) -> bool {
+        self.locked_audio.lock().finished
+    }
+}
+
 impl GameOutput for DiscordGameOutput {
+    type Audio = DiscordAudio;
+
     fn say(
         &self,
         recipient: &Recipient,
@@ -129,12 +147,18 @@ impl GameOutput for DiscordGameOutput {
             .say_with_reactions(recipient, &content, reactions)
     }
 
-    fn play_youtube_audio(&self, url: String) -> Result<LockedAudio> {
-        self.guild_output.read().play_youtube_audio(url)
+    fn play_youtube_audio(&self, url: String) -> Result<DiscordAudio> {
+        self.guild_output
+            .read()
+            .play_youtube_audio(url)
+            .map(DiscordAudio::new)
     }
 
-    fn play_file_audio(&self, path: &Path) -> Result<LockedAudio> {
-        self.guild_output.read().play_file_audio(path)
+    fn play_file_audio(&self, path: &Path) -> Result<DiscordAudio> {
+        self.guild_output
+            .read()
+            .play_file_audio(path)
+            .map(DiscordAudio::new)
     }
 
     fn stop_audio(&self) -> Result<()> {

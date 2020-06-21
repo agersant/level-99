@@ -1,14 +1,13 @@
 use anyhow::*;
 use parking_lot::RwLock;
 use serenity::model::id::{ChannelId, MessageId, UserId};
-use serenity::voice::LockedAudio;
 use std::path::Path;
 use std::sync::Arc;
 
 use std::collections::HashMap;
 
 use crate::game::team::TeamId;
-use crate::output::{GameOutput, Message, Recipient};
+use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 
 #[derive(Clone)]
 pub struct MockGameOutput {
@@ -27,7 +26,17 @@ impl MockGameOutput {
     }
 }
 
+pub struct MockAudio {}
+
+impl AudioHandle for MockAudio {
+    fn is_finished(&self) -> bool {
+        false
+    }
+}
+
 impl GameOutput for MockGameOutput {
+    type Audio = MockAudio;
+
     fn say(
         &self,
         _recipient: &Recipient,
@@ -46,12 +55,12 @@ impl GameOutput for MockGameOutput {
         HashMap::new()
     }
 
-    fn play_youtube_audio(&self, _url: String) -> Result<LockedAudio> {
-        Err(anyhow!("Mock cannot play audio"))
+    fn play_youtube_audio(&self, _url: String) -> Result<MockAudio> {
+        Ok(MockAudio {})
     }
 
-    fn play_file_audio(&self, _path: &Path) -> Result<LockedAudio> {
-        Err(anyhow!("Mock cannot play audio"))
+    fn play_file_audio(&self, _path: &Path) -> Result<MockAudio> {
+        Ok(MockAudio {})
     }
 
     fn stop_audio(&self) -> Result<()> {

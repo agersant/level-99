@@ -1,5 +1,4 @@
 use anyhow::*;
-use serenity::voice::LockedAudio;
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -9,7 +8,7 @@ use crate::game::quiz::assets::*;
 use crate::game::quiz::definition::Question;
 use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::{GameOutput, Message, Recipient};
+use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 use crate::preload;
 
 #[derive(Clone, Debug)]
@@ -28,8 +27,8 @@ pub struct QuestionState<O: GameOutput> {
     teams: TeamsHandle,
     participants: HashSet<TeamId>,
     wagers: Option<HashMap<TeamId, u32>>,
-    countdown_audio: Option<LockedAudio>,
-    song_audio: Option<LockedAudio>,
+    countdown_audio: Option<O::Audio>,
+    song_audio: Option<O::Audio>,
     output: O,
 }
 
@@ -193,7 +192,7 @@ impl<O: GameOutput> State for QuestionState<O> {
 
         let should_start_song = match (&self.countdown_audio, &self.song_audio) {
             (_, Some(_)) => false,
-            (Some(a), None) => a.lock().finished,
+            (Some(a), None) => a.is_finished(),
             (None, None) => true,
         };
         if should_start_song {

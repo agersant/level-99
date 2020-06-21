@@ -1,6 +1,5 @@
 use anyhow::*;
 use serenity::model::id::{ChannelId, MessageId, UserId};
-use serenity::voice::LockedAudio;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -45,7 +44,13 @@ pub enum Message {
     WagerWait,
 }
 
+pub trait AudioHandle {
+    fn is_finished(&self) -> bool;
+}
+
 pub trait GameOutput {
+    type Audio: AudioHandle;
+
     fn say(
         &self,
         recipient: &Recipient,
@@ -59,9 +64,9 @@ pub trait GameOutput {
         reactions: &Vec<String>,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>>;
 
-    fn play_youtube_audio(&self, url: String) -> Result<LockedAudio>; // TODO Decouple from LockedAudio so this can be mocked
+    fn play_youtube_audio(&self, url: String) -> Result<Self::Audio>;
 
-    fn play_file_audio(&self, path: &Path) -> Result<LockedAudio>; // TODO Decouple from LockedAudio so this can be mocked
+    fn play_file_audio(&self, path: &Path) -> Result<Self::Audio>;
 
     fn stop_audio(&self) -> Result<()>;
 
