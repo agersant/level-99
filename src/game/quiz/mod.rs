@@ -57,11 +57,7 @@ impl<O: GameOutput + Clone> Quiz<O> {
         let settings: Settings = Default::default();
         let questions = definition.get_questions().clone();
         let max_question_score_value = questions.iter().map(|q| q.score_value).max().unwrap_or(0);
-        let startup_state = StartupState::new(
-            settings.startup_duration,
-            definition.get_questions(),
-            output.clone(),
-        );
+        let startup_state = StartupState::new(settings.startup_duration, output.clone());
         let mut quiz = Quiz {
             remaining_questions: questions,
             current_phase: Phase::Startup(startup_state.clone()),
