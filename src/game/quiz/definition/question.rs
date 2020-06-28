@@ -104,7 +104,7 @@ impl From<RawQuestion> for Question {
             .collect();
 
         // Turn into a regex
-        let regex_to_parse = format!("^{}$", acceptable_answers.join("|"));
+        let regex_to_parse = format!("^({})$", acceptable_answers.join("|"));
         let acceptable_answers = Regex::new(&regex_to_parse).unwrap();
 
         Question {

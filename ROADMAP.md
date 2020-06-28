@@ -2,6 +2,10 @@
 - [x] Command to delete team
 - [x] Daily double
 - [x] Review TODO comments
+- [] Customize track duration
+- [] Add Quizmaster(s) to all team channels
+- [] Fixed a bug where didn't have access to bot commands
+- [x] Fixed a bug where trailing text after correct answers could be accepted
 - [] Unit tests
 
 ## Version 1.0
