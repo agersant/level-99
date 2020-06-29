@@ -1,8 +1,8 @@
 use anyhow::*;
 use serenity::{
     client::Context as SerenityContext,
-    framework::standard::macros::{check, command, group},
-    framework::standard::{Args, CheckResult, CommandError, CommandResult},
+    framework::standard::macros::{command, group},
+    framework::standard::{Args, CommandError, CommandResult},
     model::channel::Message,
     model::misc::Mentionable,
 };
@@ -17,24 +17,13 @@ const ERROR_USER_NOT_IN_VOICE: &'static str = "You must be in a voice channel to
 const ERROR_BOT_NOT_IN_VOICE: &'static str =
     "Use the `!join` command to invite the bot to a voice channel before starting the quiz.";
 
-#[check]
-#[name = "Quizmaster"]
-fn quizmaster_check(ctx: &mut SerenityContext, msg: &Message) -> CheckResult {
-    if let Some(member) = msg.member(&ctx.cache) {
-        if let Ok(permissions) = member.permissions(&ctx.cache) {
-            return permissions.administrator().into();
-        }
-    }
-    false.into()
-}
-
 #[group]
-#[checks(Quizmaster)]
+#[allowed_roles("quizmaster")]
 #[commands(begin, disband, join, pause, score, skip, unpause)]
 struct Main;
 
 #[group]
-#[checks(Quizmaster)]
+#[allowed_roles("quizmaster")]
 #[prefix = "reset"]
 #[commands(scores, teams)]
 struct Reset;
