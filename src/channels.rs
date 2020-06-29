@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use crate::game::team::{Team, TeamId};
 
 const TEAM_CHANNELS_CATEGORY: &'static str = "Team Channels";
+const QUIZMASTER_ROLE: &'static str = "quizmaster";
 
 pub fn update_team_channels(
     ctx: &SerenityContext,
@@ -18,6 +19,7 @@ pub fn update_team_channels(
 ) -> Result<HashMap<TeamId, ChannelId>> {
     // According to the docs on Guild.id: `This is equivalent to the Id of the default role (`@everyone`)`
     let everyone_role_id = RoleId::from(*guild_id.as_u64());
+    let quizmaster_role_id = get_quizmaster_role_id(ctx, guild_id)?;
 
     // Make sure we have a category for team channels
     let channels = guild_id.channels(&ctx.http)?;
@@ -98,6 +100,16 @@ pub fn update_team_channels(
                 }
             }
 
+            // Allow quizmaster to read
+            channel.create_permission(
+                &ctx.http,
+                &PermissionOverwrite {
+                    deny: Permissions::empty(),
+                    allow: Permissions::READ_MESSAGES,
+                    kind: PermissionOverwriteType::Role(quizmaster_role_id),
+                },
+            )?;
+
             // Allow team members to read
             for player in &team.players {
                 let has_permission = channel
@@ -120,4 +132,15 @@ pub fn update_team_channels(
     }
 
     Ok(channel_ids)
+}
+
+pub fn get_quizmaster_role_id(ctx: &SerenityContext, guild_id: GuildId) -> Result<RoleId> {
+    let guild = guild_id.to_partial_guild(&ctx.http)?;
+    match guild.role_by_name(QUIZMASTER_ROLE) {
+        Some(r) => Ok(r.id),
+        None => guild_id
+            .create_role(&ctx.http, |r| r.hoist(true).name(QUIZMASTER_ROLE))
+            .map(|r| r.id)
+            .context("Could not create quizmaster role"),
+    }
 }

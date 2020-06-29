@@ -3,7 +3,7 @@
 - [x] Daily double
 - [x] Review TODO comments
 - [x] Allow questions to have a custom duration
-- [] Create a quizmaster role instead of relying on admin privilege
+- [x] Create a quizmaster role instead of relying on admin privilege
 - [x] Fixed a bug where trailing text after correct answers could be accepted
 - [] Unit tests
 
