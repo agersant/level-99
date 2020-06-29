@@ -3,6 +3,7 @@ use regex::Regex;
 use serde::de;
 use serde::{Deserialize, Deserializer};
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 use unidecode::unidecode;
 
 lazy_static! {
@@ -43,6 +44,7 @@ pub struct RawQuestion {
     pub score_value: u32,
     #[serde(deserialize_with = "bool_from_string")]
     pub daily_double: bool,
+    pub duration_seconds: Option<u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -53,6 +55,7 @@ pub struct Question {
     pub category: String,
     pub score_value: u32,
     pub daily_double: bool,
+    pub duration: Option<Duration>,
 }
 
 impl Question {
@@ -114,6 +117,7 @@ impl From<RawQuestion> for Question {
             category: raw_question.category,
             score_value: raw_question.score_value,
             daily_double: raw_question.daily_double,
+            duration: raw_question.duration_seconds.map(Duration::from_secs),
         }
     }
 }

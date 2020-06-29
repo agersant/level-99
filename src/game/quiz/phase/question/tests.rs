@@ -23,6 +23,7 @@ impl ContextBuilder {
                 category: "example category".to_owned(),
                 score_value: 100,
                 daily_double: false,
+                duration_seconds: None,
             },
             team_ids: ["red", "green", "blue"]
                 .iter()
@@ -159,6 +160,21 @@ fn times_out_after_duration() {
     ctx.state.on_tick(Duration::from_secs(5));
     assert!(!ctx.state.is_over());
     ctx.state.on_tick(Duration::from_secs(5));
+    assert!(ctx.state.is_over());
+}
+
+#[test]
+fn question_can_override_duration() {
+    let builder = ContextBuilder::new();
+    let mut question = builder.question.clone();
+    question.duration_seconds = Some(100);
+    let mut ctx = ContextBuilder::new().question(question).build();
+    assert!(!ctx.state.is_over());
+    ctx.state.on_begin();
+    assert!(!ctx.state.is_over());
+    ctx.state.on_tick(Duration::from_secs(99));
+    assert!(!ctx.state.is_over());
+    ctx.state.on_tick(Duration::from_secs(2));
     assert!(ctx.state.is_over());
 }
 

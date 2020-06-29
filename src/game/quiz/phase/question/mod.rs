@@ -25,7 +25,7 @@ pub struct GuessResult {
 pub struct QuestionState<O: GameOutput> {
     question: Question,
     time_elapsed: Duration,
-    time_limit: Duration,
+    default_time_limit: Duration,
     guesses: HashMap<TeamId, GuessResult>,
     teams: TeamsHandle,
     participants: HashSet<TeamId>,
@@ -47,7 +47,7 @@ impl<O: GameOutput> QuestionState<O> {
         QuestionState {
             question,
             time_elapsed: Duration::default(),
-            time_limit: duration,
+            default_time_limit: duration,
             guesses: HashMap::new(),
             teams,
             participants,
@@ -181,13 +181,18 @@ impl<O: GameOutput> QuestionState<O> {
             _ => (),
         };
     }
+
+    fn get_time_limit(&self) -> Duration {
+        self.question.duration.unwrap_or(self.default_time_limit)
+    }
 }
 
 impl<O: GameOutput> State for QuestionState<O> {
     fn on_tick(&mut self, dt: Duration) {
-        let time_remaining_before = self.time_limit.checked_sub(self.time_elapsed);
+        let time_limit = self.get_time_limit();
+        let time_remaining_before = time_limit.checked_sub(self.time_elapsed);
         self.time_elapsed += dt;
-        let time_remaining_after = self.time_limit.checked_sub(self.time_elapsed);
+        let time_remaining_after = time_limit.checked_sub(self.time_elapsed);
 
         if !self.did_every_team_submit_a_guess() {
             self.print_time_remaining(&time_remaining_before, &time_remaining_after);
@@ -265,6 +270,6 @@ impl<O: GameOutput> State for QuestionState<O> {
     }
 
     fn is_over(&self) -> bool {
-        self.time_elapsed >= self.time_limit
+        self.time_elapsed >= self.get_time_limit()
     }
 }
