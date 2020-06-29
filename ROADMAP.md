@@ -3,8 +3,7 @@
 - [x] Daily double
 - [x] Review TODO comments
 - [] Customize track duration
-- [] Add Quizmaster(s) to all team channels
-- [] Fixed a bug where didn't have access to bot commands
+- [] Create a quizmaster role instead of relying on admin privilege
 - [x] Fixed a bug where trailing text after correct answers could be accepted
 - [] Unit tests
 
@@ -66,7 +65,6 @@
 - Double Jeopardy rules
 - Final Jeopardy rules
 - Help command
-- Create a quizmaster role instead of relying on admin privilege
 - Fine-tune required permissions instead of giving the bot admin rights
 - Disk persistence
 - Don't rely on external executables of FFMPEG and Youtube-DL
