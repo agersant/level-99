@@ -7,7 +7,7 @@ use crate::output::mock::MockGameOutput;
 fn ends_after_duration() {
     let duration = Duration::from_secs(10);
     let output = MockGameOutput::new();
-    let mut state = StartupState::new(duration, output.clone());
+    let mut state = StartupState::new(duration, &Vec::new(), output.clone());
     assert!(!state.is_over());
     state.on_begin();
     assert!(!state.is_over());
@@ -21,7 +21,7 @@ fn ends_after_duration() {
 fn prints_rules() {
     let duration = Duration::from_secs(10);
     let mut output = MockGameOutput::new();
-    let mut state = StartupState::new(duration, output.clone());
+    let mut state = StartupState::new(duration, &Vec::new(), output.clone());
     assert!(output.flush().is_empty());
     state.on_begin();
     assert_eq!(output.flush(), [Message::QuizRules]);

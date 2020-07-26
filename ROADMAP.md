@@ -5,6 +5,8 @@
 - [x] Allow questions to have a custom duration
 - [x] Create a quizmaster role instead of relying on admin privilege
 - [x] Fixed a bug where trailing text after correct answers could be accepted
+- [x] End quiz if a song fails to preload
+- [x] Wait for preload completion before starting the quiz
 - [] Unit tests
 
 ## Version 1.0

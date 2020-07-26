@@ -29,6 +29,7 @@ pub enum Message {
     GuessesReveal(Vec<(TeamId, String)>),
     GuessIncorrect(TeamId, i32),
     QuizRules,
+    PreloadFailed,
     ScoresRecap(Vec<(TeamId, i32)>),
     ScoresReset,
     QuestionBegins(Question),

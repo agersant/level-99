@@ -5,7 +5,8 @@ use parking_lot::RwLock;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
+use std::sync::Arc;
 use std::time::Duration;
 
 lazy_static! {
@@ -17,6 +18,30 @@ lazy_static! {
 pub struct CacheEntry {
     pub path: PathBuf,
     pub start_at: Duration,
+}
+
+#[derive(Clone, Debug)]
+pub struct PreloadHandle {
+    process: Arc<RwLock<Child>>,
+}
+
+#[derive(Clone, Debug)]
+pub enum PreloadState {
+    InProgress,
+    Success,
+    Failure,
+}
+
+impl PreloadHandle {
+    pub fn get_state(&mut self) -> PreloadState {
+        let mut child = self.process.write();
+        match child.try_wait() {
+            Err(_) => PreloadState::Failure,
+            Ok(None) => PreloadState::InProgress,
+            Ok(Some(exit_status)) if exit_status.success() => PreloadState::Success,
+            Ok(Some(_)) => PreloadState::Failure,
+        }
+    }
 }
 
 lazy_static! {
@@ -51,7 +76,7 @@ fn url_to_start_time(url: &str) -> Result<Duration> {
     return Ok(Duration::from_secs(0));
 }
 
-pub fn preload_songs(urls: &Vec<String>) -> Result<()> {
+pub fn preload_songs(urls: &Vec<String>) -> Result<PreloadHandle> {
     for url in urls {
         let path = url_to_path(url);
         let start_time = url_to_start_time(url);
@@ -77,11 +102,10 @@ pub fn preload_songs(urls: &Vec<String>) -> Result<()> {
     let mut args = urls.iter().map(|s| s.as_str()).collect::<Vec<&str>>();
     ytdl_args.append(&mut args);
 
-    if let Err(e) = Command::new("youtube-dl").args(&ytdl_args).spawn() {
-        eprintln!("Could not spawn youtube-dl process for preloading: {}", e);
-    }
-
-    Ok(())
+    let child = Command::new("youtube-dl").args(&ytdl_args).spawn()?;
+    Ok(PreloadHandle {
+        process: Arc::new(RwLock::new(child)),
+    })
 }
 
 pub fn retrieve_song(url: &str) -> Option<CacheEntry> {

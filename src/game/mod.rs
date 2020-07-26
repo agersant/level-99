@@ -12,7 +12,6 @@ use self::quiz::definition::QuizDefinition;
 use self::quiz::Quiz;
 use self::team::{sanitize_name, Team, TeamId, TeamsHandle};
 use crate::output::{GameOutput, Message, Recipient};
-use crate::preload;
 
 enum Phase<O: GameOutput> {
     Startup,
@@ -62,12 +61,6 @@ impl<O: GameOutput + Clone> Game<O> {
         match &self.current_phase {
             Phase::Setup => {
                 let definition = QuizDefinition::open(quiz_path)?;
-                let song_urls = definition
-                    .get_questions()
-                    .iter()
-                    .map(|q| q.url.to_owned())
-                    .collect();
-                preload::preload_songs(&song_urls).ok();
                 let quiz = Quiz::new(definition, self.teams.clone(), self.output.clone());
                 self.set_current_phase(Phase::Quiz(quiz));
                 Ok(())

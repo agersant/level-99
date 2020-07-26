@@ -6,7 +6,7 @@ use self::definition::*;
 use self::phase::*;
 use self::settings::*;
 use crate::game::{TeamId, TeamsHandle};
-use crate::output::GameOutput;
+use crate::output::{GameOutput, Message, Recipient};
 
 pub mod assets;
 pub mod definition;
@@ -44,6 +44,7 @@ impl<O: GameOutput> Phase<O> {
 
 pub struct Quiz<O: GameOutput> {
     pub teams: TeamsHandle,
+    abort: bool,
     settings: Settings,
     current_phase: Phase<O>,
     initiative: Option<TeamId>,
@@ -56,9 +57,12 @@ impl<O: GameOutput + Clone> Quiz<O> {
     pub fn new(definition: QuizDefinition, teams: TeamsHandle, output: O) -> Self {
         let settings: Settings = Default::default();
         let questions = definition.get_questions().clone();
+        let song_urls = questions.iter().map(|q| q.url.to_owned()).collect();
         let max_question_score_value = questions.iter().map(|q| q.score_value).max().unwrap_or(0);
-        let startup_state = StartupState::new(settings.startup_duration, output.clone());
+        let startup_state =
+            StartupState::new(settings.startup_duration, &song_urls, output.clone());
         let mut quiz = Quiz {
+            abort: false,
             remaining_questions: questions,
             current_phase: Phase::Startup(startup_state.clone()),
             max_question_score_value,
@@ -72,6 +76,9 @@ impl<O: GameOutput + Clone> Quiz<O> {
     }
 
     pub fn is_over(&self) -> bool {
+        if self.abort {
+            return true;
+        }
         match self.current_phase {
             Phase::Results(_) => true,
             _ => false,
@@ -123,8 +130,14 @@ impl<O: GameOutput + Clone> Quiz<O> {
 
     fn advance(&mut self) {
         match &self.current_phase {
-            Phase::Startup(_s) => {
-                self.begin_vote();
+            Phase::Startup(s) => {
+                if s.preload_succeeded() {
+                    self.begin_vote();
+                } else {
+                    self.output
+                        .say(&Recipient::AllTeams, &Message::PreloadFailed);
+                    self.abort = true;
+                }
             }
             Phase::Vote(_s) => {
                 self.initiate_question();
