@@ -25,6 +25,7 @@ pub enum Message {
     GamePaused,
     GameResults(TeamId),
     GameUnpaused,
+    GameEnded,
     GuessCorrect(TeamId, i32),
     GuessesReveal(Vec<(TeamId, String)>),
     GuessIncorrect(TeamId, i32),

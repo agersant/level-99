@@ -124,6 +124,10 @@ impl<O: GameOutput + Clone> Quiz<O> {
         }
     }
 
+    pub fn abort(&mut self) {
+        self.abort = true;
+    }
+
     pub fn skip_phase(&mut self) {
         self.advance();
     }

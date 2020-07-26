@@ -19,7 +19,7 @@ const ERROR_BOT_NOT_IN_VOICE: &'static str =
 
 #[group]
 #[allowed_roles("quizmaster")]
-#[commands(begin, disband, join, pause, score, skip, unpause)]
+#[commands(begin, disband, end, join, pause, score, skip, unpause)]
 struct Main;
 
 #[group]
@@ -105,6 +105,36 @@ fn disband(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResul
         let channel_ids = update_team_channels(ctx, guild_id, &game.get_teams())?;
         game.update_team_channels(channel_ids);
 
+        Ok(())
+    }();
+
+    if let Err(e) = result {
+        eprintln!("{:#}", e);
+        check_msg(msg.reply(&ctx.http, format!("{}", e)));
+        return Err(CommandError(e.to_string()));
+    }
+    Ok(())
+}
+
+#[command]
+fn end(ctx: &mut SerenityContext, msg: &Message) -> CommandResult {
+    let result = || -> Result<()> {
+        let guild_id = ctx
+            .cache
+            .read()
+            .guild_channel(msg.channel_id)
+            .context("Server not found")?
+            .read()
+            .guild_id;
+        let game_pool = ctx
+            .data
+            .read()
+            .get::<GamePool>()
+            .cloned()
+            .expect("Expected GamePool in ShareMap.");
+        let game_lock = game_pool.get_game(ctx, guild_id);
+        let mut game = game_lock.lock();
+        game.end()?;
         Ok(())
     }();
 

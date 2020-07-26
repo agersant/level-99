@@ -69,6 +69,17 @@ impl<O: GameOutput + Clone> Game<O> {
         }
     }
 
+    pub fn end(&mut self) -> Result<()> {
+        match &mut self.current_phase {
+            Phase::Quiz(q) => {
+                q.abort();
+                self.output.say(&Recipient::AllTeams, &Message::GameEnded);
+                Ok(())
+            }
+            _ => Err(anyhow!("There is no quiz in progress")),
+        }
+    }
+
     pub fn skip(&mut self) -> Result<()> {
         match &mut self.current_phase {
             Phase::Quiz(q) => {

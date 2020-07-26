@@ -7,6 +7,7 @@
 - [x] Fixed a bug where trailing text after correct answers could be accepted
 - [x] End quiz if a song fails to preload
 - [x] Wait for preload completion before starting the quiz
+- [x] Added a command to end the quiz
 - [] Unit tests
 
 ## Version 1.0
@@ -59,7 +60,6 @@
 - [x] Command to reset teams
 
 ## Backlog
-- Command to end quiz
 - Fine-tune required permissions instead of giving the bot admin rights
 - Don't rely on external executables of FFMPEG and Youtube-DL
 - Support for &t in URLs
