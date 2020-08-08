@@ -45,7 +45,7 @@ impl PreloadHandle {
 }
 
 lazy_static! {
-    static ref CACHE: RwLock<HashMap<String, CacheEntry>> = { RwLock::new(HashMap::new()) };
+    static ref CACHE: RwLock<HashMap<String, CacheEntry>> = RwLock::new(HashMap::new());
 }
 
 fn get_cache_dir() -> Result<PathBuf> {
