@@ -1,6 +1,6 @@
 # Version 1.1
 - [x] Command to delete team
-- [x] Daily double
+- [x] Challenge questions
 - [x] Review TODO comments
 - [x] Allow questions to have a custom duration
 - [x] Create a quizmaster role instead of relying on admin privilege
@@ -8,7 +8,6 @@
 - [x] End quiz if a song fails to preload
 - [x] Wait for preload completion before starting the quiz
 - [x] Added a command to end the quiz
-- [] Unit tests
 
 ## Version 1.0
 - [x] Bot personality (image, name, texts)

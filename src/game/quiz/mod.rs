@@ -182,7 +182,7 @@ impl<O: GameOutput + Clone> Quiz<O> {
 
     fn initiate_question(&mut self) {
         if let Some(question) = self.select_question() {
-            if question.daily_double {
+            if question.challenge {
                 let participants = match &self.initiative {
                     Some(team_id) => {
                         let mut h = HashSet::new();

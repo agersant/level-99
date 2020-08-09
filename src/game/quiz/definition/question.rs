@@ -43,7 +43,7 @@ pub struct RawQuestion {
     pub category: String,
     pub score_value: u32,
     #[serde(deserialize_with = "bool_from_string")]
-    pub daily_double: bool,
+    pub challenge: bool,
     pub duration_seconds: Option<u64>,
 }
 
@@ -54,7 +54,7 @@ pub struct Question {
     pub acceptable_answers: Regex,
     pub category: String,
     pub score_value: u32,
-    pub daily_double: bool,
+    pub challenge: bool,
     pub duration: Option<Duration>,
 }
 
@@ -116,7 +116,7 @@ impl From<RawQuestion> for Question {
             acceptable_answers: acceptable_answers,
             category: raw_question.category,
             score_value: raw_question.score_value,
-            daily_double: raw_question.daily_double,
+            challenge: raw_question.challenge,
             duration: raw_question.duration_seconds.map(Duration::from_secs),
         }
     }

@@ -22,7 +22,7 @@ impl ContextBuilder {
                 acceptable_answers: None,
                 category: "example category".to_owned(),
                 score_value: 100,
-                daily_double: false,
+                challenge: false,
                 duration_seconds: None,
             },
             team_ids: ["red", "green", "blue"]
@@ -261,7 +261,7 @@ fn only_first_answer_gets_full_points() {
 fn wager_defaults_to_question_value() {
     let builder = ContextBuilder::new();
     let mut question = builder.question.clone();
-    question.daily_double = true;
+    question.challenge = true;
     let mut ctx = ContextBuilder::new().question(question).build();
     let red = ctx.team_ids.get("red").unwrap().clone();
 
@@ -277,7 +277,7 @@ fn wager_defaults_to_question_value() {
 fn wager_overrides_question_value() {
     let builder = ContextBuilder::new();
     let mut question = builder.question.clone();
-    question.daily_double = true;
+    question.challenge = true;
     let red = builder.team_ids.get("red").unwrap().clone();
     let blue = builder.team_ids.get("blue").unwrap().clone();
     let red_wager_amount = 1000;
