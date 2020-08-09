@@ -1,3 +1,11 @@
+## Future improvements
+- Don't rely on external executables of FFMPEG and Youtube-DL
+- Support for &t in URLs
+- Commands to tweak settings
+- Create game on ready and on join server instead of within get_game()
+- Solo play
+- Help command
+
 # Version 1.1
 - [x] Command to delete team
 - [x] Challenge questions
@@ -58,14 +66,3 @@
 - [x] Command to reset scores
 - [x] Command to reset teams
 
-## Backlog
-- Fine-tune required permissions instead of giving the bot admin rights
-- Don't rely on external executables of FFMPEG and Youtube-DL
-- Support for &t in URLs
-- Commands to tweak settings
-- Create game on ready and on join server instead of within get_game()
-- Solo play
-- Double Jeopardy rules
-- Final Jeopardy rules
-- Help command
-- Disk persistence
