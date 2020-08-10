@@ -21,6 +21,15 @@ jobs:
         toolchain: stable
         profile: minimal
         default: true
+    - name: Install youtube-dl Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install youtube-dl
+    - uses: actions-rs/cargo@v1
+    - name: Install youtube-dl Windows
+      if: matrix.os == 'windows-latest'
+      uses: crazy-max/ghaction-chocolatey@v1
+      with:
+          args: install youtube-dl
     - uses: actions-rs/cargo@v1
       with:
         command: test
