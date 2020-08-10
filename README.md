@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/agersant/level-99/workflows/Build/badge.svg)](https://github.com/agersant/level-99/actions)
+
 # Level-99
 
 Level-99 is a self-hosted bot which can run blind-tests on your Discord server. Teams of players compete for points, trying to recognize music being played by the bot.
