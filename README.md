@@ -45,6 +45,7 @@ Quiz are CSV files listing questions, answers, point values, categories and othe
 
 - `url`: This column must contain a Youtube URL to the video whose audio will play when the question is asked.
 - `answer`: This column must contain the answer which the bot will display as the expected answer at the end of the question.
+- `category`: This column must contain the category associated with the question. During the quiz, players can vote for which category they want the next question to be from. Within a category, questions are always asked in ascending score value.
 - `score_value`: This column must contain the number of points awarded for answering this question first.
 - `acceptable_answers`: This column can be blank. It is used to list alternative answers which acceptable, in addition to the one in the `answer` column. Multiple entries can be separated using the `|` character. **Note that accents, capitalization and whitespace are all ignored - which means you don't need to list out these trivial variations**.
 - `challenge`: This column can be blank. If it contains the word `TRUE`, the question will be a Challenge Question. These questions can only be answered by the team who last answered correctly, and the team will have the ability to wager a variable amount of points before the question begins.
