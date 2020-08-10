@@ -1,9 +1,8 @@
 [package]
 name = "level-99"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Antoine Gersant <antoine.gersant@lesforges.org>"]
 edition = "2018"
-
 
 [dependencies]
 anyhow = "1.0"
