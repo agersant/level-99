@@ -45,7 +45,7 @@ impl DiscordGameOutput {
             GamePaused=> "The game is now paused, use `!unpause` to resume.".into(),
             GameUnpaused=> "The game has resumed.".into(),
             GameEnded=> "The game was stopped.".into(),
-            QuizRules => "The quiz is about to begin!\n\n**📋 Rules**\n- For each song, your team can submit **one** guess using the `!guess something` command.\n- Guessing wrong will deduct the same amount of points you could have earned!\n- If you are not the first team to guess, point earned or deducted are halved.\n\n**🔥 Tips**\n- Answers are game names, not song titles or composers.\n- You can adjust the music volume by right clicking on the bot in the voice channel UI.\n- Sometimes it is wiser to not answer than to lose points!".into(),
+            QuizRules => "The quiz is about to begin!\n\n**📋 Rules**\n- For each song, your team can submit **one** guess using the `!guess something` command.\n- Guessing wrong will deduct the same amount of points you could have earned!\n- If you are not the first team to guess, point earned or deducted are halved.\n\n**🔥 Tips**\n- You can adjust the music volume by right clicking on the bot in the voice channel UI.\n- Sometimes it is wiser to not answer than to lose points!".into(),
             PreloadFailed => "⚠️ The quiz contains some songs that could not be downloaded.".into(),
             GuessCorrect(team_id, score_delta) => {
                 let team_name = self.get_team_display_name(team_id);
