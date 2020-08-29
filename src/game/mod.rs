@@ -43,18 +43,16 @@ impl<O: GameOutput + Clone> Game<O> {
     }
 
     pub fn tick(&mut self, dt: Duration) {
-        if self.paused {
-            return;
-        }
         match &mut self.current_phase {
             Phase::Startup | Phase::Setup => (),
             Phase::Quiz(quiz) => {
-                quiz.tick(dt);
                 if quiz.is_over() {
                     self.set_current_phase(Phase::Setup);
+                } else if !self.paused {
+                    quiz.tick(dt);
                 }
             }
-        };
+        }
     }
 
     pub fn begin(&mut self, quiz_path: &Path) -> Result<()> {
