@@ -3,8 +3,11 @@
 - Support for &t in URLs
 - Commands to tweak settings
 - Create game on ready and on join server instead of within get_game()
-- Solo play
 - Help command
+
+# Next
+- [x] Don't consume answer when sending !guess with no text
+- Add a command to accept a rejected response
 
 # Version 1.1
 - [x] Command to delete team

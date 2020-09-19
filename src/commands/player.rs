@@ -34,7 +34,9 @@ fn guess(ctx: &mut SerenityContext, msg: &Message, args: Args) -> CommandResult 
         let mut game = game_lock.lock();
 
         let guess = args.rest();
-        game.guess(msg.author.id, &guess)?;
+        if guess.trim().len() != 0 {
+            game.guess(msg.author.id, &guess)?;
+        }
         Ok(())
     }();
 
