@@ -129,15 +129,6 @@ impl<O: GameOutput + Clone> Game<O> {
     }
 
     pub fn join_team(&mut self, player: UserId, team_name: &str) -> Result<()> {
-        let is_setup_phase = match &self.current_phase {
-            Phase::Setup => true,
-            _ => false,
-        };
-        let is_player_on_team = self.get_player_team(player).is_some();
-        if is_player_on_team && !is_setup_phase {
-            return Err(anyhow!("Team can not be changed during a quiz"));
-        }
-
         let mut teams = self.teams.write();
 
         // Remove player from existing team
