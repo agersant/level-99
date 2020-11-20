@@ -11,7 +11,7 @@ Level-99 is a self-hosted bot which can run blind-tests on your Discord server. 
 ## Dependencies
 
 - Download an executable of [youtube-dl](https://ytdl-org.github.io/youtube-dl/download.html) for your system. Make sure to add it to your path and that it can be invoked by executing `youtube-dl` in a console window.
-- Download an executable of [FFmpeg](https://ffmpeg.org/download.html) for your system. Make sure to add it to your path and that it can be invoked by executing `youtube-dl` in a console window.
+- Download an executable of [FFmpeg](https://ffmpeg.org/download.html) for your system. Make sure to add it to your path and that it can be invoked by executing `ffmpeg` in a console window.
 - Install the [Rust toolchain](https://rustup.rs/).
 
 ## Level-99 executable
