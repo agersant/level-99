@@ -22,14 +22,7 @@ Level-99 is a self-hosted bot which can run blind-tests on your Discord server. 
 ## Create and Invite the Bot
 
 - Follow [these instructions](https://discordpy.readthedocs.io/en/latest/discord.html)
-- Make sure you list at least the following in required permissions:
-    - Manage Roles
-	- Manage Channels
-	- View Channels
-	- Send Messages
-	- Add Reactions
-	- Connect
-	- Speak
+- Make sure you give your bot the Administrator permission.
 - Feel free to customize your bot's name and icon
 - From the `Bot` tab on the Discord website, click the `Copy` button to copy your bot's Token. Save it on your computer as an environment variable named `DISCORD_TOKEN_LEVEL99`. Please note that this Token is different from the `CLIENT ID` and `CLIENT SECRET` on the `General Information` page for your Discord App.
 
