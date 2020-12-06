@@ -19,7 +19,7 @@ impl ContextBuilder {
             question: RawQuestion {
                 url: "example url".to_owned(),
                 answer: "example answer".to_owned(),
-                acceptable_answers: None,
+                acceptable_answers: Some("acceptable answer 1|acceptable answer 2".to_string()),
                 category: "example category".to_owned(),
                 score_value: 100,
                 challenge: false,
@@ -215,7 +215,35 @@ fn correct_answer_gives_points() {
     let red = ctx.team_ids.get("red").unwrap().clone();
     assert!(ctx
         .state
-        .guess(&red, &ctx.state.question.answer.to_string())
+        .guess(&red, &ctx.state.question.answer.clone())
+        .is_ok());
+    let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
+    assert!(score > 0);
+    assert_eq!(ctx.state.question.score_value as i32, score);
+}
+
+
+#[test]
+fn correct_answer_with_extra_forbidden_characters_gives_points() {
+    let mut ctx = ContextBuilder::new().build();
+    let red = ctx.team_ids.get("red").unwrap().clone();
+    let guess = format!("{}#$%", &ctx.state.question.answer);
+    assert!(ctx
+        .state
+        .guess(&red, &guess)
+        .is_ok());
+    let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
+    assert!(score > 0);
+    assert_eq!(ctx.state.question.score_value as i32, score);
+}
+
+#[test]
+fn correct_acceptable_answer_gives_points() {
+    let mut ctx = ContextBuilder::new().build();
+    let red = ctx.team_ids.get("red").unwrap().clone();
+    assert!(ctx
+        .state
+        .guess(&red, "acceptable answer 1")
         .is_ok());
     let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
     assert!(score > 0);

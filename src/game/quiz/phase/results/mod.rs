@@ -7,6 +7,9 @@ use crate::output::{GameOutput, Message, Recipient};
 
 const SFX_CONGRATS: &'static str = "assets/congrats.wav";
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct ResultsState<O> {
     teams: TeamsHandle,
