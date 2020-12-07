@@ -2,6 +2,7 @@ use anyhow::*;
 use parking_lot::RwLock;
 use serenity::model::id::{ChannelId, MessageId, UserId};
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use std::collections::HashMap;
@@ -9,21 +10,38 @@ use std::collections::HashMap;
 use crate::game::team::TeamId;
 use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 
+#[derive(PartialEq, Eq)]
+pub enum Entry {
+    Text(Message),
+    Audio(PathBuf),
+}
+
 #[derive(Clone)]
 pub struct MockGameOutput {
-    messages: Arc<RwLock<Vec<Message>>>,
+    entries: Arc<RwLock<Vec<Entry>>>,
 }
 
 impl MockGameOutput {
     pub fn new() -> Self {
         Self {
-            messages: Arc::new(RwLock::new(Vec::new())),
+            entries: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
-    pub fn flush(&mut self) -> Vec<Message> {
-        std::mem::replace(self.messages.write().as_mut(), Vec::new())
+    pub fn flush(&mut self) -> Vec<Entry> {
+        std::mem::replace(self.entries.write().as_mut(), Vec::new())
     }
+
+    pub fn contains_message(&self, message: &Message) -> bool {
+        self.entries.read().iter().any(|entry| match entry {
+            Entry::Text(m) if m == message => true,
+            _ => false,
+        })
+    }
+
+    pub fn contains_audio(&self, path: &Path) -> bool {
+        self.entries.read().iter().any(|entry| entry == &Entry::Audio(path.to_path_buf()))
+    } 
 }
 
 pub struct MockAudio {}
@@ -42,7 +60,7 @@ impl GameOutput for MockGameOutput {
         _recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
-        self.messages.write().push(message.clone());
+        self.entries.write().push(Entry::Text(message.clone()));
         HashMap::new()
     }
 
@@ -59,7 +77,8 @@ impl GameOutput for MockGameOutput {
         Ok(MockAudio {})
     }
 
-    fn play_file_audio(&self, _path: &Path) -> Result<MockAudio> {
+    fn play_file_audio(&self, path: &Path) -> Result<MockAudio> {
+        self.entries.write().push(Entry::Audio(path.to_path_buf()));
         Ok(MockAudio {})
     }
 

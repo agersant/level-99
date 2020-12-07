@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::*;
 use crate::game::quiz::definition::{Question, RawQuestion};
 use crate::game::team::Team;
-use crate::output::mock::MockGameOutput;
+use crate::output::mock::{Entry, MockGameOutput};
 
 struct ContextBuilder {
     question: RawQuestion,
@@ -101,20 +101,18 @@ impl Context {
 fn announces_question() {
     let mut ctx = ContextBuilder::new().build();
     ctx.state.on_begin();
-    assert_eq!(
-        ctx.output.flush(),
-        [Message::QuestionBegins(ctx.state.question.clone())]
-    );
+
+    let message = Message::QuestionBegins(ctx.state.question.clone());
+    assert!(ctx.output.contains_message(&message));
 }
 
 #[test]
 fn timeout_announces_answer() {
     let mut ctx = ContextBuilder::new().build();
     ctx.state.on_end();
-    assert!(ctx
-        .output
-        .flush()
-        .contains(&Message::TimeUp(ctx.state.question.clone())));
+
+    let message = Message::TimeUp(ctx.state.question.clone());
+    assert!(ctx.output.contains_message(&message));
 }
 
 #[test]
@@ -145,10 +143,9 @@ fn timeout_announces_scores() {
         (green.clone(), green_score),
         (blue.clone(), 0),
     ];
-    assert!(ctx
-        .output
-        .flush()
-        .contains(&Message::ScoresRecap(expected_scores)));
+
+    let message = Message::ScoresRecap(expected_scores);
+    assert!(ctx.output.contains_message(&message));
 }
 
 #[test]
@@ -347,8 +344,8 @@ fn reveals_answer_after_all_teams_have_guessed() {
     let green = ctx.team_ids.get("green").unwrap().clone();
     let blue = ctx.team_ids.get("blue").unwrap().clone();
 
-    let is_answer_reveal = |m: &Message| match m {
-        Message::AnswerReveal(_) => true,
+    let is_answer_reveal = |e: &Entry| match e {
+        Entry::Text(Message::AnswerReveal(_)) => true,
         _ => false,
     };
     assert!(ctx.state.guess(&red, "whatever").is_ok());

@@ -35,5 +35,5 @@ fn prints_rules() {
     let mut state = StartupState::new(duration, &Vec::new(), output.clone());
     assert!(output.flush().is_empty());
     state.on_begin();
-    assert_eq!(output.flush(), [Message::QuizRules]);
+    assert!(output.contains_message(&Message::QuizRules));
 }
