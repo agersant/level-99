@@ -153,7 +153,7 @@ impl<O: GameOutput + Clone> Quiz<O> {
                     self.teams.clone(),
                     self.output.clone(),
                     s.participants.clone(),
-                    Some(s.wagers.clone()),
+                    Some(s.wager_amounts.clone()),
                 );
                 self.set_current_phase(Phase::Question(state));
             }
