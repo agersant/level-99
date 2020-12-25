@@ -1,12 +1,16 @@
 use super::*;
+use parking_lot::RwLock;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::game::TeamsHandle;
 use crate::output::mock::MockGameOutput;
 
 #[test]
 fn ends_after_duration() {
     let duration = Duration::from_secs(10);
-    let output = MockGameOutput::new();
+    let teams: TeamsHandle = Arc::new(RwLock::new(vec![]));
+    let output = MockGameOutput::new(teams.clone());
     let mut state = StartupState::new(duration, &Vec::new(), output.clone());
     assert!(!state.is_over());
     state.on_begin();
@@ -31,7 +35,8 @@ fn ends_after_duration() {
 #[test]
 fn prints_rules() {
     let duration = Duration::from_secs(10);
-    let mut output = MockGameOutput::new();
+    let teams: TeamsHandle = Arc::new(RwLock::new(vec![]));
+    let mut output = MockGameOutput::new(teams.clone());
     let mut state = StartupState::new(duration, &Vec::new(), output.clone());
     assert!(output.flush().is_empty());
     state.on_begin();

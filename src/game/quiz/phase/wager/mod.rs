@@ -36,11 +36,9 @@ impl<O: GameOutput> WagerState<O> {
     ) -> Self {
         let wager_amounts = participants
             .iter()
-            .map(|team_id| {
-                (team_id.clone(), question.score_value)
-            })
+            .map(|team_id| (team_id.clone(), question.score_value))
             .collect();
-        
+
         WagerState {
             question,
             time_elapsed: Duration::default(),
@@ -80,7 +78,7 @@ impl<O: GameOutput> WagerState<O> {
         self.wagers_committed.len() == self.participants.len()
     }
 
-    fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
+    fn print_time_remaining(&mut self, before: &Option<Duration>, after: &Option<Duration>) {
         match (before, after) {
             (Some(before), Some(after)) => {
                 let seconds_10 = Duration::from_secs(10);
@@ -136,7 +134,11 @@ impl<O: GameOutput> State for WagerState<O> {
     }
 
     fn on_end(&mut self) {
-        let wagers = self.wager_amounts.iter().map(|(id, amount)| (id.clone(), *amount)).collect();
+        let wagers = self
+            .wager_amounts
+            .iter()
+            .map(|(id, amount)| (id.clone(), *amount))
+            .collect();
         self.output
             .say(&Recipient::AllTeams, &Message::WagerResults(wagers));
     }

@@ -129,7 +129,7 @@ impl GameOutput for DiscordGameOutput {
     type Audio = DiscordAudio;
 
     fn say(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
@@ -138,7 +138,7 @@ impl GameOutput for DiscordGameOutput {
     }
 
     fn say_with_reactions(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
         reactions: &Vec<String>,

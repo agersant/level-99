@@ -4,10 +4,9 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::game::quiz::definition::{RawQuestion};
+use crate::game::quiz::definition::RawQuestion;
 use crate::game::team::Team;
-use crate::output::mock::{MockGameOutput};
-
+use crate::output::mock::MockGameOutput;
 
 struct Context {
     state: WagerState<MockGameOutput>,
@@ -49,28 +48,28 @@ impl ContextBuilder {
             score_value: 100,
             challenge: true,
             duration_seconds: None,
-        }.into();
+        }
+        .into();
         let duration = Duration::from_secs(10);
         let teams: TeamsHandle = Arc::new(RwLock::new(
             self.team_ids
                 .iter()
                 .map(|(_n, team_id)| Team::new(team_id.clone()))
-                .collect()
-            ));
-        let output = MockGameOutput::new();
+                .collect(),
+        ));
+        let output = MockGameOutput::new(teams.clone());
         let max_question_score_value = 2000;
-    
+
         let state = WagerState::new(
             question,
             duration,
-            teams, 
+            teams,
             output,
             self.participants,
-            max_question_score_value);
+            max_question_score_value,
+        );
 
-        Context {
-            state,
-        }
+        Context { state }
     }
 }
 
@@ -79,7 +78,7 @@ fn one_team_one_wager() {
     let builder = ContextBuilder::new();
     let mut participants = HashSet::new();
     let red = builder.team_ids.get("red").unwrap();
-    participants.insert(red.clone());    
+    participants.insert(red.clone());
     let mut ctx = ContextBuilder::new().participants(participants).build();
     let wager = 1000;
 
@@ -101,7 +100,10 @@ fn no_wager() {
     ctx.state.on_tick(Duration::from_secs(30));
     assert!(ctx.state.is_over());
     ctx.state.on_end();
-    assert_eq!(ctx.state.wager_amounts.get(&red).unwrap(), &ctx.state.question.score_value);
+    assert_eq!(
+        ctx.state.wager_amounts.get(&red).unwrap(),
+        &ctx.state.question.score_value
+    );
 }
 
 #[test]
@@ -114,7 +116,10 @@ fn one_team_wager_too_big() {
 
     assert!(ctx.state.wager(&red, 10_000).is_ok());
     assert!(ctx.state.is_over());
-    assert_eq!(*ctx.state.wager_amounts.get(&red).unwrap(), 2 * ctx.state.max_question_score_value);
+    assert_eq!(
+        *ctx.state.wager_amounts.get(&red).unwrap(),
+        2 * ctx.state.max_question_score_value
+    );
 }
 
 #[test]
@@ -128,7 +133,10 @@ fn one_team_wager_too_small() {
     assert!(ctx.state.wager(&red, 10).is_ok());
 
     assert!(ctx.state.is_over());
-    assert_eq!(*ctx.state.wager_amounts.get(&red).unwrap(), ctx.state.question.score_value);
+    assert_eq!(
+        *ctx.state.wager_amounts.get(&red).unwrap(),
+        ctx.state.question.score_value
+    );
 }
 
 #[test]
@@ -148,4 +156,3 @@ fn two_team_with_wagers() {
     assert_eq!(ctx.state.wager_amounts.get(&red).unwrap(), &red_wager);
     assert_eq!(ctx.state.wager_amounts.get(&blue).unwrap(), &blue_wager);
 }
-

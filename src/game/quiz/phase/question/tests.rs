@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::*;
 use crate::game::quiz::definition::{Question, RawQuestion};
 use crate::game::team::Team;
-use crate::output::mock::{Entry, MockGameOutput};
+use crate::output::mock::{Entry, MockGameOutput, TextEntry};
 
 struct ContextBuilder {
     question: RawQuestion,
@@ -50,13 +50,13 @@ impl ContextBuilder {
     }
 
     fn build(self) -> Context {
-        let output = MockGameOutput::new();
         let teams: TeamsHandle = Arc::new(RwLock::new(
             self.team_ids
                 .iter()
                 .map(|(_n, team_id)| Team::new(team_id.clone()))
                 .collect(),
         ));
+        let output = MockGameOutput::new(teams.clone());
 
         let participants = teams.read().iter().map(|t| t.id.clone()).collect();
         let question: Question = self.question.into();
@@ -219,16 +219,12 @@ fn correct_answer_gives_points() {
     assert_eq!(ctx.state.question.score_value as i32, score);
 }
 
-
 #[test]
 fn correct_answer_with_extra_forbidden_characters_gives_points() {
     let mut ctx = ContextBuilder::new().build();
     let red = ctx.team_ids.get("red").unwrap().clone();
     let guess = format!("{}#$%", &ctx.state.question.answer);
-    assert!(ctx
-        .state
-        .guess(&red, &guess)
-        .is_ok());
+    assert!(ctx.state.guess(&red, &guess).is_ok());
     let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
     assert!(score > 0);
     assert_eq!(ctx.state.question.score_value as i32, score);
@@ -238,10 +234,7 @@ fn correct_answer_with_extra_forbidden_characters_gives_points() {
 fn correct_acceptable_answer_gives_points() {
     let mut ctx = ContextBuilder::new().build();
     let red = ctx.team_ids.get("red").unwrap().clone();
-    assert!(ctx
-        .state
-        .guess(&red, "acceptable answer 1")
-        .is_ok());
+    assert!(ctx.state.guess(&red, "acceptable answer 1").is_ok());
     let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
     assert!(score > 0);
     assert_eq!(ctx.state.question.score_value as i32, score);
@@ -345,7 +338,10 @@ fn reveals_answer_after_all_teams_have_guessed() {
     let blue = ctx.team_ids.get("blue").unwrap().clone();
 
     let is_answer_reveal = |e: &Entry| match e {
-        Entry::Text(Message::AnswerReveal(_)) => true,
+        Entry::Text(TextEntry {
+            message: Message::AnswerReveal(_),
+            message_id: _,
+        }) => true,
         _ => false,
     };
     assert!(ctx.state.guess(&red, "whatever").is_ok());

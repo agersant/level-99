@@ -138,7 +138,7 @@ impl<O: GameOutput> QuestionState<O> {
         score_value * correctness_multiplier
     }
 
-    fn reveal_guesses(&self) {
+    fn reveal_guesses(&mut self) {
         if self.guesses.is_empty() {
             return;
         }
@@ -151,7 +151,7 @@ impl<O: GameOutput> QuestionState<O> {
             .say(&Recipient::AllTeams, &Message::GuessesReveal(guesses));
     }
 
-    fn print_scores(&self) {
+    fn print_scores(&mut self) {
         let mut teams = self.teams.read().clone();
         teams.sort_by_key(|t| Reverse(t.score));
         let teams = teams.iter().map(|t| (t.id.clone(), t.score)).collect();
@@ -159,7 +159,7 @@ impl<O: GameOutput> QuestionState<O> {
             .say(&Recipient::AllTeams, &Message::ScoresRecap(teams));
     }
 
-    fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
+    fn print_time_remaining(&mut self, before: &Option<Duration>, after: &Option<Duration>) {
         match (before, after) {
             (Some(before), Some(after)) => {
                 let seconds_10 = Duration::from_secs(10);

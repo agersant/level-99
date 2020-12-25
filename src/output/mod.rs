@@ -54,13 +54,13 @@ pub trait GameOutput {
     type Audio: AudioHandle;
 
     fn say(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>>;
 
     fn say_with_reactions(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
         reactions: &Vec<String>,
