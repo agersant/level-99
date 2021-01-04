@@ -12,17 +12,17 @@ use std::{
 use crate::game::team::{TeamId, TeamsHandle};
 use crate::output::{AudioHandle, GameOutput, Message, Recipient};
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct TextEntry {
     pub message: Message,
     pub message_id: MessageId,
+    pub reactions: HashMap<String, HashSet<UserId>>,
 }
 
 #[derive(Clone)]
 pub struct MockGameOutput {
     text_output: Arc<RwLock<HashMap<TeamId, Vec<TextEntry>>>>,
     audio_output: Arc<RwLock<Option<MockAudio>>>,
-    reactions: Arc<RwLock<HashMap<MessageId, HashMap<String, HashSet<UserId>>>>>,
     teams: TeamsHandle,
     message_count: u64,
 }
@@ -36,17 +36,19 @@ impl MockGameOutput {
         Self {
             text_output: Arc::new(RwLock::new(text_channels)),
             audio_output: Arc::new(RwLock::new(None)),
-            reactions: Arc::new(RwLock::new(HashMap::new())),
             teams,
             message_count: 0,
         }
     }
 
-    pub fn flush(&mut self, team_id: &TeamId) -> Vec<TextEntry> {
-        std::mem::replace(
-            self.text_output.write().get_mut(team_id).unwrap(),
-            Vec::new(),
-        )
+    pub fn read_channel(&mut self, team_id: &TeamId) -> Vec<TextEntry> {
+        self.text_output
+            .read()
+            .get(team_id)
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect()
     }
 
     pub fn contains_message(&self, team_id: &TeamId, message: &Message) -> bool {
@@ -59,6 +61,7 @@ impl MockGameOutput {
                 TextEntry {
                     message: m,
                     message_id: _,
+                    reactions: _,
                 } if m == message => true,
                 _ => false,
             })
@@ -76,36 +79,47 @@ impl MockGameOutput {
         MessageId(self.message_count)
     }
 
-    fn react_to_message(&mut self, message_id: MessageId, reaction: String, user_id: UserId) {
-        let mut reactions = self.reactions.write();
-        if reactions.contains_key(&message_id) {
-            if reactions.get(&message_id).unwrap().contains_key(&reaction) {
-                reactions
-                    .get_mut(&message_id)
-                    .unwrap()
-                    .get_mut(&reaction)
-                    .unwrap()
-                    .insert(user_id);
-            } else {
-                let mut user_ids = HashSet::new();
-                user_ids.insert(user_id);
-                reactions
-                    .get_mut(&message_id)
-                    .unwrap()
-                    .insert(reaction, user_ids);
+    pub fn react_to_message(&mut self, message_id: MessageId, reaction: String, user_id: UserId) {
+        for channel in self.text_output.write().values_mut() {
+            if let Some(text_entry) = channel
+                .iter_mut()
+                .find(|text_entry| text_entry.message_id == message_id)
+            {
+                if let Some(reactions) = text_entry.reactions.get_mut(&reaction) {
+                    reactions.insert(user_id);
+                } else {
+                    let mut users = HashSet::new();
+                    users.insert(user_id);
+                    text_entry.reactions.insert(reaction.clone(), users);
+                }
             }
-        } else {
-            let mut new_reactions = HashMap::new();
-            let mut user_ids = HashSet::new();
-            user_ids.insert(user_id);
-            new_reactions.insert(reaction, user_ids);
-            reactions.insert(message_id, new_reactions);
+        }
+    }
+
+    fn recipient_to_team_ids(&self, recipient: &Recipient) -> Vec<TeamId> {
+        match recipient {
+            Recipient::Team(id) => vec![id.clone()],
+            Recipient::AllTeams => self.teams.read().iter().map(|t| t.id.clone()).collect(),
+            Recipient::AllTeamsExcept(team_id) => self
+                .teams
+                .read()
+                .iter()
+                .map(|t| t.id.clone())
+                .filter(|id| id != team_id)
+                .collect(),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct MockAudio {
     pub source: PathBuf,
+}
+
+impl MockAudio {
+    fn new(source: PathBuf) -> Self {
+        Self { source }
+    }
 }
 
 impl AudioHandle for MockAudio {
@@ -119,58 +133,65 @@ impl GameOutput for MockGameOutput {
 
     fn say(
         &mut self,
-        _recipient: &Recipient,
+        recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
-        let message_id = self.next_message_id();
-        self.entries.write().push(Entry::Text(TextEntry {
-            message: message.clone(),
-            message_id,
-        }));
-        HashMap::new()
+        let mut output = HashMap::new();
+
+        for id in &self.recipient_to_team_ids(recipient) {
+            let message_id = self.next_message_id();
+            self.text_output
+                .write()
+                .get_mut(id)
+                .unwrap()
+                .push(TextEntry {
+                    message: message.clone(),
+                    message_id: message_id,
+                    reactions: HashMap::new(),
+                });
+            output.insert(id.clone(), Ok((ChannelId(0), message_id)));
+        }
+
+        output
     }
 
     fn say_with_reactions(
         &mut self,
         recipient: &Recipient,
         message: &Message,
-        reactions: &Vec<String>,
+        _reactions: &Vec<String>,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
         let mut output = HashMap::new();
-        let team_ids: Vec<TeamId> = match recipient {
-            Recipient::Team(id) => vec![id.clone()],
-            Recipient::AllTeams => self.teams.read().iter().map(|t| t.id.clone()).collect(),
-            Recipient::AllTeamsExcept(team_id) => self
-                .teams
-                .read()
-                .iter()
-                .map(|t| t.id.clone())
-                .filter(|id| id != team_id)
-                .collect(),
-        };
 
-        for id in team_ids {
+        for id in &self.recipient_to_team_ids(recipient) {
             let message_id = self.next_message_id();
-            self.entries.write().push(Entry::Text(TextEntry {
-                message: message.clone(),
-                message_id: message_id,
-            }));
-            output.insert(id, Ok((ChannelId(0), message_id)));
+            self.text_output
+                .write()
+                .get_mut(id)
+                .unwrap()
+                .push(TextEntry {
+                    message: message.clone(),
+                    message_id: message_id,
+                    reactions: HashMap::new(),
+                });
+            output.insert(id.clone(), Ok((ChannelId(0), message_id)));
         }
 
         output
     }
 
     fn play_youtube_audio(&self, _url: String) -> Result<MockAudio> {
-        Ok(MockAudio {})
+        Ok(MockAudio::new(PathBuf::new()))
     }
 
     fn play_file_audio(&self, path: &Path) -> Result<MockAudio> {
-        self.entries.write().push(Entry::Audio(path.to_path_buf()));
-        Ok(MockAudio {})
+        let mock_audio = MockAudio::new(path.to_path_buf());
+        *self.audio_output.write() = Some(mock_audio.clone());
+        Ok(mock_audio)
     }
 
     fn stop_audio(&self) -> Result<()> {
+        *self.audio_output.write() = None;
         Ok(())
     }
 
@@ -179,14 +200,21 @@ impl GameOutput for MockGameOutput {
         _channel_id: ChannelId,
         message_id: MessageId,
         reaction: String,
-    ) -> Result<Vec<UserId>> {
-        Ok(self
-            .reactions
-            .write()
-            .get(&message_id)
-            .and_then(|r| r.get(&reaction))
-            .map(|ids| ids.iter().cloned().collect())
-            .unwrap_or(vec![]))
+    ) -> Result<HashSet<UserId>> {
+        for (id, channel) in self.text_output.read().iter() {
+            if let Some(text_entry) = channel
+                .iter()
+                .find(|text_entry| text_entry.message_id == message_id)
+            {
+                return Ok(text_entry
+                    .reactions
+                    .get(&reaction)
+                    .cloned()
+                    .unwrap_or(HashSet::new()));
+            }
+        }
+
+        Ok(HashSet::new())
     }
 
     fn update_team_channels(&self, _channel_ids: HashMap<TeamId, ChannelId>) {}

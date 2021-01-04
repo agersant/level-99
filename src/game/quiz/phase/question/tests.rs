@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::*;
 use crate::game::quiz::definition::{Question, RawQuestion};
 use crate::game::team::Team;
-use crate::output::mock::{Entry, MockGameOutput, TextEntry};
+use crate::output::mock::{MockGameOutput, TextEntry};
 
 struct ContextBuilder {
     question: RawQuestion,
@@ -103,7 +103,9 @@ fn announces_question() {
     ctx.state.on_begin();
 
     let message = Message::QuestionBegins(ctx.state.question.clone());
-    assert!(ctx.output.contains_message(&message));
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
@@ -112,7 +114,9 @@ fn timeout_announces_answer() {
     ctx.state.on_end();
 
     let message = Message::TimeUp(ctx.state.question.clone());
-    assert!(ctx.output.contains_message(&message));
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
@@ -145,7 +149,9 @@ fn timeout_announces_scores() {
     ];
 
     let message = Message::ScoresRecap(expected_scores);
-    assert!(ctx.output.contains_message(&message));
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
@@ -337,16 +343,19 @@ fn reveals_answer_after_all_teams_have_guessed() {
     let green = ctx.team_ids.get("green").unwrap().clone();
     let blue = ctx.team_ids.get("blue").unwrap().clone();
 
-    let is_answer_reveal = |e: &Entry| match e {
-        Entry::Text(TextEntry {
+    let is_answer_reveal = |e: &TextEntry| match e {
+        TextEntry {
             message: Message::AnswerReveal(_),
             message_id: _,
-        }) => true,
+            reactions: _,
+        } => true,
         _ => false,
     };
     assert!(ctx.state.guess(&red, "whatever").is_ok());
     assert!(ctx.state.guess(&green, "whatever").is_ok());
-    assert!(!ctx.output.flush().iter().any(is_answer_reveal));
+    assert!(!ctx.output.read_channel(&red).iter().any(is_answer_reveal));
     assert!(ctx.state.guess(&blue, "whatever").is_ok());
-    assert!(ctx.output.flush().iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&red).iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&green).iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&blue).iter().any(is_answer_reveal));
 }

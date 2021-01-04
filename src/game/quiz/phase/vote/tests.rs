@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::game::quiz::definition::{Question, RawQuestion};
 use crate::game::team::Team;
-use crate::output::mock::{Entry, MockGameOutput, TextEntry};
+use crate::output::mock::{MockGameOutput, TextEntry};
 
 struct Context {
     state: VoteState<MockGameOutput>,
@@ -164,25 +164,28 @@ fn displays_question_values() {
 
     ctx.state.on_begin();
 
-    let messages = ctx.state.output.flush();
-    let message = messages
-        .into_iter()
-        .find_map(|message| match message {
-            Entry::Text(TextEntry {
-                message: Message::VotePoll(v),
-                message_id: _,
-            }) => Some(v),
-            _ => None,
-        })
-        .unwrap();
+    for team in ctx.teams.read().iter() {
+        let messages = ctx.state.output.read_channel(&team.id);
+        let message = messages
+            .into_iter()
+            .find_map(|message| match message {
+                TextEntry {
+                    message: Message::VotePoll(v),
+                    message_id: _,
+                    reactions: _,
+                } => Some(v),
+                _ => None,
+            })
+            .unwrap();
 
-    assert!(message
-        .iter()
-        .any(|(_, category, score)| category == "cat A" && *score == 100));
+        assert!(message
+            .iter()
+            .any(|(_, category, score)| category == "cat A" && *score == 100));
 
-    assert!(message
-        .iter()
-        .any(|(_, category, score)| category == "cat B" && *score == 200));
+        assert!(message
+            .iter()
+            .any(|(_, category, score)| category == "cat B" && *score == 200));
+    }
 }
 
 #[test]
@@ -191,28 +194,43 @@ fn only_one_team_can_vote() {
     let red = builder.team_ids.get("red").unwrap();
     let blue = builder.team_ids.get("blue").unwrap();
 
-    let mut ctx = ContextBuilder::new().voting_team(Some(red.clone())).build();
+    let mut ctx = ContextBuilder::new()
+        .num_remaining_questions(3)
+        .voting_team(Some(red.clone()))
+        .build();
 
-    let red_user_id = ctx
-        .teams
-        .read()
-        .iter()
-        .find(|team| (*team).id == *red)
-        .unwrap();
-
-    let blue_user_id = ctx
-        .teams
-        .read()
-        .iter()
-        .find(|team| (*team).id == *blue)
-        .unwrap();
+    // TODO hashmap of team name to teams in context
+    let teams = ctx.teams.read();
+    let red_team = teams.iter().find(|team| (*team).id == *red).unwrap();
+    let red_user_id = red_team.players.iter().next().unwrap();
 
     ctx.state.on_begin();
 
-    message_id = ctx.output.find(message);
+    assert!(ctx
+        .output
+        .read_channel(&blue)
+        .iter()
+        .find(|text_entry| match text_entry.message {
+            Message::VotePoll(_) => true,
+            _ => false,
+        })
+        .is_none());
 
-    // ctx.react_to_message(message_id, reaction, red_user_id);
-    // ctx.react_to_message(message_id, reaction, blue_user_id);
+    let (message_id, poll) = ctx
+        .output
+        .read_channel(&red)
+        .into_iter()
+        .find_map(|text_entry| match text_entry.message {
+            Message::VotePoll(poll) => Some((text_entry.message_id, poll)),
+            _ => None,
+        })
+        .unwrap();
+
+    let (reaction, category, _value) = poll[0].clone();
+    ctx.output
+        .react_to_message(message_id, reaction, *red_user_id);
+
+    assert_eq!(ctx.state.compute_vote_result().unwrap().category, category);
 }
 
 // #[test]

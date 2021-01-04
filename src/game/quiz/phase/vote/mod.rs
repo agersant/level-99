@@ -157,6 +157,7 @@ impl<O: GameOutput> State for VoteState<O> {
             None => Recipient::AllTeams,
             Some(team_id) => Recipient::Team(team_id.clone()),
         };
+
         let poll_options = self
             .vote_options
             .iter()
