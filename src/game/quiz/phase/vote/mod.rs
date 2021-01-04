@@ -12,6 +12,9 @@ use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{GameOutput, Message, Recipient};
 
+#[cfg(test)]
+mod tests;
+
 const VOTE_REACTIONS: &'static [&'static str] =
     &["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
@@ -154,6 +157,7 @@ impl<O: GameOutput> State for VoteState<O> {
             None => Recipient::AllTeams,
             Some(team_id) => Recipient::Team(team_id.clone()),
         };
+
         let poll_options = self
             .vote_options
             .iter()

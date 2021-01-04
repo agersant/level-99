@@ -5,7 +5,7 @@ use std::time::Duration;
 use super::*;
 use crate::game::quiz::definition::{Question, RawQuestion};
 use crate::game::team::Team;
-use crate::output::mock::MockGameOutput;
+use crate::output::mock::{MockGameOutput, TextEntry};
 
 struct ContextBuilder {
     question: RawQuestion,
@@ -19,7 +19,7 @@ impl ContextBuilder {
             question: RawQuestion {
                 url: "example url".to_owned(),
                 answer: "example answer".to_owned(),
-                acceptable_answers: None,
+                acceptable_answers: Some("acceptable answer 1|acceptable answer 2".to_string()),
                 category: "example category".to_owned(),
                 score_value: 100,
                 challenge: false,
@@ -50,13 +50,13 @@ impl ContextBuilder {
     }
 
     fn build(self) -> Context {
-        let output = MockGameOutput::new();
         let teams: TeamsHandle = Arc::new(RwLock::new(
             self.team_ids
                 .iter()
                 .map(|(_n, team_id)| Team::new(team_id.clone()))
                 .collect(),
         ));
+        let output = MockGameOutput::new(teams.clone());
 
         let participants = teams.read().iter().map(|t| t.id.clone()).collect();
         let question: Question = self.question.into();
@@ -101,20 +101,22 @@ impl Context {
 fn announces_question() {
     let mut ctx = ContextBuilder::new().build();
     ctx.state.on_begin();
-    assert_eq!(
-        ctx.output.flush(),
-        [Message::QuestionBegins(ctx.state.question.clone())]
-    );
+
+    let message = Message::QuestionBegins(ctx.state.question.clone());
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
 fn timeout_announces_answer() {
     let mut ctx = ContextBuilder::new().build();
     ctx.state.on_end();
-    assert!(ctx
-        .output
-        .flush()
-        .contains(&Message::TimeUp(ctx.state.question.clone())));
+
+    let message = Message::TimeUp(ctx.state.question.clone());
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
@@ -145,10 +147,11 @@ fn timeout_announces_scores() {
         (green.clone(), green_score),
         (blue.clone(), 0),
     ];
-    assert!(ctx
-        .output
-        .flush()
-        .contains(&Message::ScoresRecap(expected_scores)));
+
+    let message = Message::ScoresRecap(expected_scores);
+    for (_team_name, team_id) in &ctx.team_ids {
+        assert!(ctx.output.contains_message(team_id, &message));
+    }
 }
 
 #[test]
@@ -215,8 +218,29 @@ fn correct_answer_gives_points() {
     let red = ctx.team_ids.get("red").unwrap().clone();
     assert!(ctx
         .state
-        .guess(&red, &ctx.state.question.answer.to_string())
+        .guess(&red, &ctx.state.question.answer.clone())
         .is_ok());
+    let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
+    assert!(score > 0);
+    assert_eq!(ctx.state.question.score_value as i32, score);
+}
+
+#[test]
+fn correct_answer_with_extra_forbidden_characters_gives_points() {
+    let mut ctx = ContextBuilder::new().build();
+    let red = ctx.team_ids.get("red").unwrap().clone();
+    let guess = format!("{}#$%", &ctx.state.question.answer);
+    assert!(ctx.state.guess(&red, &guess).is_ok());
+    let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
+    assert!(score > 0);
+    assert_eq!(ctx.state.question.score_value as i32, score);
+}
+
+#[test]
+fn correct_acceptable_answer_gives_points() {
+    let mut ctx = ContextBuilder::new().build();
+    let red = ctx.team_ids.get("red").unwrap().clone();
+    assert!(ctx.state.guess(&red, "acceptable answer 1").is_ok());
     let score = ctx.teams.read().iter().find(|t| t.id == red).unwrap().score;
     assert!(score > 0);
     assert_eq!(ctx.state.question.score_value as i32, score);
@@ -319,13 +343,19 @@ fn reveals_answer_after_all_teams_have_guessed() {
     let green = ctx.team_ids.get("green").unwrap().clone();
     let blue = ctx.team_ids.get("blue").unwrap().clone();
 
-    let is_answer_reveal = |m: &Message| match m {
-        Message::AnswerReveal(_) => true,
+    let is_answer_reveal = |e: &TextEntry| match e {
+        TextEntry {
+            message: Message::AnswerReveal(_),
+            message_id: _,
+            reactions: _,
+        } => true,
         _ => false,
     };
     assert!(ctx.state.guess(&red, "whatever").is_ok());
     assert!(ctx.state.guess(&green, "whatever").is_ok());
-    assert!(!ctx.output.flush().iter().any(is_answer_reveal));
+    assert!(!ctx.output.read_channel(&red).iter().any(is_answer_reveal));
     assert!(ctx.state.guess(&blue, "whatever").is_ok());
-    assert!(ctx.output.flush().iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&red).iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&green).iter().any(is_answer_reveal));
+    assert!(ctx.output.read_channel(&blue).iter().any(is_answer_reveal));
 }

@@ -1,6 +1,6 @@
 use anyhow::*;
 use serenity::model::id::{ChannelId, MessageId, UserId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
@@ -54,13 +54,13 @@ pub trait GameOutput {
     type Audio: AudioHandle;
 
     fn say(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>>;
 
     fn say_with_reactions(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
         reactions: &Vec<String>,
@@ -77,7 +77,7 @@ pub trait GameOutput {
         channel_id: ChannelId,
         message_id: MessageId,
         reaction: String,
-    ) -> Result<Vec<UserId>>;
+    ) -> Result<HashSet<UserId>>;
 
     fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>);
 }

@@ -9,6 +9,9 @@ use crate::game::quiz::State;
 use crate::game::{TeamId, TeamsHandle};
 use crate::output::{GameOutput, Message, Recipient};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug)]
 pub struct WagerState<O> {
     pub question: Question,
@@ -16,8 +19,9 @@ pub struct WagerState<O> {
     time_limit: Duration,
     teams: TeamsHandle,
     output: O,
+    wagers_committed: HashSet<TeamId>,
     pub participants: HashSet<TeamId>,
-    pub wagers: HashMap<TeamId, u32>,
+    pub wager_amounts: HashMap<TeamId, u32>,
     max_question_score_value: u32,
 }
 
@@ -30,14 +34,20 @@ impl<O: GameOutput> WagerState<O> {
         participants: HashSet<TeamId>,
         max_question_score_value: u32,
     ) -> Self {
+        let wager_amounts = participants
+            .iter()
+            .map(|team_id| (team_id.clone(), question.score_value))
+            .collect();
+
         WagerState {
             question,
             time_elapsed: Duration::default(),
             time_limit: duration,
             teams,
             output,
+            wagers_committed: HashSet::new(),
             participants,
-            wagers: HashMap::new(),
+            wager_amounts,
             max_question_score_value,
         }
     }
@@ -48,7 +58,8 @@ impl<O: GameOutput> WagerState<O> {
         }
         let wager_cap = self.get_wager_cap(team_id);
         let amount = amount.min(wager_cap).max(self.question.score_value);
-        self.wagers.insert(team_id.clone(), amount);
+        self.wager_amounts.insert(team_id.clone(), amount);
+        self.wagers_committed.insert(team_id.clone());
         Ok(())
     }
 
@@ -57,17 +68,17 @@ impl<O: GameOutput> WagerState<O> {
             .teams
             .read()
             .iter()
-            .find(|t| &t.id == team_id)
-            .and_then(|t| Some(t.score.max(0) as u32))
+            .find(|t| &t.id == team_id) // Option<&TeamID>
+            .map(|t| t.score.max(0) as u32)
             .unwrap_or(0);
         team_score.max(2 * self.max_question_score_value)
     }
 
     fn did_every_team_wager(&self) -> bool {
-        self.wagers.len() == self.participants.len()
+        self.wagers_committed.len() == self.participants.len()
     }
 
-    fn print_time_remaining(&self, before: &Option<Duration>, after: &Option<Duration>) {
+    fn print_time_remaining(&mut self, before: &Option<Duration>, after: &Option<Duration>) {
         match (before, after) {
             (Some(before), Some(after)) => {
                 let seconds_10 = Duration::from_secs(10);
@@ -124,22 +135,15 @@ impl<O: GameOutput> State for WagerState<O> {
 
     fn on_end(&mut self) {
         let wagers = self
-            .participants
+            .wager_amounts
             .iter()
-            .map(|team_id| {
-                let amount = self
-                    .wagers
-                    .get(team_id)
-                    .copied()
-                    .unwrap_or(self.question.score_value);
-                (team_id.clone(), amount)
-            })
+            .map(|(id, amount)| (id.clone(), *amount))
             .collect();
         self.output
             .say(&Recipient::AllTeams, &Message::WagerResults(wagers));
     }
 
     fn is_over(&self) -> bool {
-        self.time_elapsed >= self.time_limit || self.wagers.len() == self.participants.len()
+        self.time_elapsed >= self.time_limit || self.did_every_team_wager()
     }
 }

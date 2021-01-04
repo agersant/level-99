@@ -2,7 +2,7 @@ use anyhow::*;
 use parking_lot::RwLock;
 use serenity::model::id::{ChannelId, MessageId, UserId};
 use serenity::voice::LockedAudio;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -129,7 +129,7 @@ impl GameOutput for DiscordGameOutput {
     type Audio = DiscordAudio;
 
     fn say(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
     ) -> HashMap<TeamId, Result<(ChannelId, MessageId)>> {
@@ -138,7 +138,7 @@ impl GameOutput for DiscordGameOutput {
     }
 
     fn say_with_reactions(
-        &self,
+        &mut self,
         recipient: &Recipient,
         message: &Message,
         reactions: &Vec<String>,
@@ -172,10 +172,11 @@ impl GameOutput for DiscordGameOutput {
         channel_id: ChannelId,
         message_id: MessageId,
         reaction: String,
-    ) -> Result<Vec<UserId>> {
+    ) -> Result<HashSet<UserId>> {
         self.guild_output
             .read()
             .read_reactions(channel_id, message_id, reaction)
+            .map(|v| v.into_iter().collect())
     }
 
     fn update_team_channels(&self, channel_ids: HashMap<TeamId, ChannelId>) {
